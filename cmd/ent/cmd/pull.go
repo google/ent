@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 
+	"github.com/fatih/color"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
@@ -63,7 +65,8 @@ func pull(base cid.Cid, targetPath string, executable bool) {
 	}
 	traverseRemote(base, "", func(p string, node format.Node) error {
 		fullPath := filepath.Join(targetPath, p)
-		log.Printf("%s\n", fullPath)
+		marker := color.BlueString("↓")
+		fmt.Printf("%s %s %s\n", color.YellowString(node.Cid().String()), marker, fullPath)
 		switch node := node.(type) {
 		case *merkledag.ProtoNode:
 			err := os.MkdirAll(fullPath, 0755)

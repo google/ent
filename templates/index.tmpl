@@ -1,0 +1,25 @@
+<html>
+<h1>
+	HELLO
+</h1>
+<form action="/upload" method="post" enctype="multipart/form-data">
+	<div>
+		File:
+		<input type="file" id="file" name="file">
+	</div>
+	<div>
+		Dir:
+		<input type="file" id="file" name="directory" webkitdirectory>
+	</div>
+	<input type="submit">
+</form>
+
+<!-- <iframe src="https://en.wikipedia.org/wiki/Titian" width="800" height="800"></iframe> -->
+<div id="content">EMPTY</div>
+<script>
+	fetch("https://en.wikipedia.org/wiki/Titian", {method: "GET",headers: {
+		origin: "sss"
+	} });
+</script>
+
+</html>

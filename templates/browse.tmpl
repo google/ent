@@ -1,0 +1,330 @@
+<link href="/static/tailwind.min.css" rel="stylesheet">
+
+<body class="p-10">
+{{ $root := .root }}
+{{ $path := .path }}
+{{ $parentPath := .parentPath }}
+{{ $pathSegments := .pathSegments }}
+{{ $wwwHost := .wwwHost }}
+
+<div class="divide-y-2 divide-blue-500 border-2 border-blue-500 rounded-lg">
+	<div class="p-2 flex">
+		<div class="px-2 bg-yellow-100 hover:bg-yellow-300 border border-yellow-200 rounded-lg w-min">
+			<a href="/blobs/{{ .root }}">{{ .root }}</a>
+		</div>
+		{{ range $pathSegments }}
+		<div>
+			<div class="inline px-1">/</div>
+			<a class="underline" href="/blobs/{{ $root }}/{{ .Path }}">{{ .Name }}</a>
+		</div>
+		{{ end }}
+	</div>
+	<div class="flex">
+		{{ if eq .type "file" }}
+		<button
+		class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded"
+		id="save_button"
+		disabled="true"
+		title="save"
+		onclick="save()">
+		<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+		</svg>
+		</button>
+		{{ end }}
+		{{ if eq .type "directory" }}
+		<input type="file" id="file_input" multiple style="display: none;" onchange="fileInputChange()">
+		<button
+		class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded flex"
+		id="upload_files_button"
+		title="upload files"
+		onclick="uploadFiles()">
+		<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+		</svg>
+		</button>
+		<button
+		class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded flex"
+		id="upload_files_button"
+		title="create empty dir"
+		onclick="createEmptyDir()">
+		<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+		</svg>
+		</button>
+		<button
+		class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded flex"
+		id="upload_files_button"
+		title="create empty file"
+		onclick="createEmptyFile()">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+			</svg>
+		</button>
+		<button
+		class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded flex"
+		id="upload_files_button"
+		title="create empty file"
+		onclick="createEmptyFile()">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+			</svg>
+		</button>
+		{{ end }}
+	</div>
+
+	{{ if $pathSegments }}
+	<a href="/blobs/{{ $root }}{{ $parentPath }}" class="block p-2 hover:bg-blue-200 font-mono flex">
+		<div class="px-2 text-blue-500">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+			</svg>
+		</div>
+		<div class="px-2 flex-1">..</div>
+	</a>
+	{{ end }}
+
+	{{/* dirs */}}
+    {{ range .node.Links }}
+	{{ if eq .Cid.Prefix.Codec 0x70 }}
+	<a href="/blobs/{{ $root }}{{ with $path }}{{ . }}{{ else }}/{{ end }}{{ .Name }}" class="block p-2 hover:bg-blue-200 font-mono flex">
+		<div class="px-2 text-blue-500" onclick="rename()">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+			</svg>
+		</div>
+		<div class="px-2 flex-1">{{ .Name }}</div>
+		<div class="px-2 hover:text-blue-500" title="rename" onclick="renameLink(event, '{{.Name}}')">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+			</svg>
+		</div>
+		<div class="px-2 hover:text-red-500" title="delete" onclick="deleteLink(event, '{{.Name}}')">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+			</svg>
+		</div>
+		<div class="px-2 bg-yellow-100 border border-yellow-200 rounded-lg text-xs h-4">{{ .Cid }}</div>
+	</a>
+	{{ end }}
+	{{ end }}
+
+	{{/* files */}}
+    {{ range .node.Links }}
+	{{ if ne .Cid.Prefix.Codec 0x70 }}
+	<div class="p-2 hover:bg-blue-200 font-mono flex">
+		<div class="px-2">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+			</svg>
+		</div>
+		<div class="px-2 flex-1">
+			<a href="/blobs/{{ $root }}{{ with $path }}{{ . }}{{ else }}/{{ end }}{{ .Name }}" class="hover:underline hover:text-blue-500">
+				{{ .Name }}
+			</a>
+		</div>
+		<div class="px-2 hover:text-blue-500">
+			<a title="www" target="_blank" href="http://{{ $root }}.{{ $wwwHost }}{{ with $path }}{{ . }}{{ else }}/{{ end }}{{.Name}}">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+				</svg>
+			</a>
+		</div>
+		<div class="px-2 hover:text-blue-500" title="rename" onclick="renameLink(event, '{{.Name}}')">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+			</svg>
+		</div>
+		<div class="px-2 hover:text-red-500" title="delete" onclick="deleteLink(event, '{{.Name}}')">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+			</svg>
+		</div>
+		<div class="px-2 bg-yellow-100 border border-yellow-200 rounded-lg text-xs h-4">{{ .Cid }}</div>
+	</div>
+	{{ end }}
+	{{ end }}
+
+	{{ if eq .type "file" }}
+	<div class="font-mono whitespace-pre" contenteditable="true" id="blob" oninput="fileChange()">{{ .blob_str }}</div>
+    {{ end }}
+</div>
+
+{{ if .node }}
+<div class="hidden">
+	<form action="?" method="post" enctype="multipart/form-data">
+		<h2 class="text-lg">Add Files</h2>
+		<input type="file" id="file" name="file" multiple="multiple">
+		<!-- <div>
+			Add Dir:
+			<input type="file" id="file" name="directory" webkitdirectory>
+		</div> -->
+		<input type="submit" class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded">
+	</form>
+</div>
+{{ end }}
+
+
+<script>
+function fileChange() {
+	const blob = document.getElementById('blob');
+	const save = document.getElementById('save_button');
+	save.disabled = false;
+
+	console.log("change" );
+}
+
+async function uploadFiles() {
+	const fileSelect = document.getElementById('file_input');
+	fileSelect.click();
+}
+
+// https://stackoverflow.com/a/36046727/269518
+ToBase64 = function (u8) {
+	var u8 = new Uint8Array(u8);
+    return btoa(String.fromCharCode.apply(null, u8));
+}
+
+function _arrayBufferToBase64( buffer ) {
+    var binary = '';
+    var bytes = new Uint8Array( buffer );
+    var len = bytes.byteLength;
+    for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode( bytes[ i ] );
+    }
+    return window.btoa( binary );
+}
+
+async function fileInputChange() {
+	const fileSelect = document.getElementById('file_input');
+	var request = {
+		root: "{{ .root }}",
+		blobs: [],
+	};
+	for (f of fileSelect.files) {
+		const data = await new Response(f).arrayBuffer();
+		const b64data = _arrayBufferToBase64(data);
+		request.blobs.push({
+			type: "file",
+			path: "{{ .path }}/" + f.name,
+			content: b64data,
+		});
+	}
+	console.log(request);
+	const response = await fetch("/api/update", {
+		method: "POST",
+		body: JSON.stringify(request)
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	const root = responseJson.Root;
+	window.location = "/blobs/" + root + "/{{ $path }}";
+}
+
+async function createEmptyDir() {
+	const name = prompt('New dir name');
+	if (name == null) {
+		return
+	}
+	const response = await fetch("/api/update", {
+		method: "POST",
+		body: JSON.stringify({
+			root: "{{ .root }}",
+			blobs: [{
+				type: "directory",
+				path: "{{ .path }}/" + name,
+				content: "",
+			}]
+		})
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	const root = responseJson.Root;
+	window.location = "/blobs/" + root + "/{{ $path }}";
+}
+
+async function createEmptyFile() {
+	const name = prompt('New file name');
+	if (name == null) {
+		return
+	}
+	const response = await fetch("/api/update", {
+		method: "POST",
+		body: JSON.stringify({
+			root: "{{ .root }}",
+			blobs: [{
+				type: "file",
+				path: "{{ .path }}/" + name,
+				content: "",
+			}]
+		})
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	const root = responseJson.Root;
+	window.location = "/blobs/" + root + "/{{ $path }}";
+}
+
+async function renameLink(e, linkName) {
+	e.preventDefault();
+	console.log(e, linkName);
+	const newName = prompt('New name', linkName);
+	if (newName == null) {
+		return
+	}
+	const response = await fetch("/api/rename", {
+		method: "POST",
+		body: JSON.stringify({
+			root: "{{ .root }}",
+			fromPath: "{{ .path }}/" + linkName,
+			toPath: "{{ .path }}/" + newName,
+		})
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	const root = responseJson.Root;
+	window.location = "/blobs/" + root + "/{{ $path }}";
+}
+
+async function deleteLink(e, linkName) {
+	const response = await fetch("/api/remove", {
+		method: "POST",
+		body: JSON.stringify({
+			root: "{{ .root }}",
+			path: "{{ .path }}/" + linkName,
+		})
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	window.location = responseJson.RedirectURL;
+}
+
+async function browseLink(e, linkName) {
+	e.preventDefault();
+	const url = "http://{{ .root }}.{{ .wwwHost }}/{{ with .path }}{{ . }}/{{ end }}"+linkName;
+	window.open(url);
+}
+
+async function save() {
+	const blob = document.getElementById('blob');
+	const save = document.getElementById('save_button');
+	console.log("save & branch", blob.innerText);
+	const response = await fetch("/api/update", {
+		method: "POST",
+		body: JSON.stringify({
+			root: "{{ .root }}",
+			blobs: [{
+				type: "file",
+				path: "{{ .path }}",
+				content: btoa(blob.innerText),
+			}]
+		})
+	});
+	const responseJson = await response.json();
+	console.log(responseJson);
+	const root = responseJson.Root;
+	window.location = "/blobs/" + root + "{{ $path }}";
+}
+</script>
+
+</body>

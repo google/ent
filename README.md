@@ -1,7 +1,9 @@
-# Ent
+# 🌳 Ent
 
-Ent is an experimental universal, scalable, general purpose, Content-Addressable
-Store (CAS) to explore verifiable data structures, policies and graphs.
+Ent (named after the [Ent](https://en.wikipedia.org/wiki/Ent) species from _The
+Lord of the Rings_ by J. R. R. Tolkien) is an experimental universal, scalable,
+general purpose, Content-Addressable Store (CAS) to explore verifiable data
+structures, policies and graphs.
 
 The end goal of Ent is for there to exist a few large Ent servers around the
 world that store arbitrary content, and are connected with each other in a

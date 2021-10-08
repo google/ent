@@ -25,6 +25,17 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
+type Descriptor struct {
+	MediaType  string
+	Size       uint64
+	Digest     string
+	Attributes map[string]string
+	Data       []byte
+}
+
+type Link struct {
+}
+
 func NewProtoNode() *merkledag.ProtoNode {
 	node := merkledag.ProtoNode{}
 	node.SetCidBuilder(merkledag.V1CidPrefix())

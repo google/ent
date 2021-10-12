@@ -16,6 +16,7 @@
 package utils
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
@@ -97,4 +98,9 @@ func Hash(c cid.Cid) string {
 
 func ParseHash(s string) (multihash.Multihash, error) {
 	return multihash.FromHexString(s)
+}
+
+func ComputeHash(b []byte) string {
+	h := sha256.Sum256(b)
+	return "sha256:" + hex.EncodeToString(h[:])
 }

@@ -7,6 +7,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/fatih/color v1.12.0
 	github.com/gin-gonic/gin v1.7.1
+	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-playground/validator/v10 v10.6.1 // indirect
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipld-format v0.2.0

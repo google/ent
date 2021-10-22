@@ -16,78 +16,103 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 
+	"cloud.google.com/go/firestore"
 	"github.com/google/ent/index"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 var (
-	indexFlag string
-	in        string
+	indexFlag           string
+	firebaseCredentials string
+	firebaseProject     string
+	concurrency         int
 )
 
+type URL struct {
+	URL string
+}
+
 func server(cmd *cobra.Command, args []string) {
-	if indexFlag == "" {
-		fmt.Println("index flag is required")
-		os.Exit(1)
-		return
-	}
-	if in == "" {
-		fmt.Println("in flag is required")
-		os.Exit(1)
-		return
-	}
-	lines, err := ioutil.ReadFile(in)
+	ctx := context.Background()
+	client, err := firestore.NewClient(ctx, firebaseProject, option.WithCredentialsFile(firebaseCredentials))
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("could not create client: %v", err)
+	}
+	if indexFlag == "" {
+		log.Fatal("index flag is required")
+	}
+	iter := client.Collection("urls").Documents(ctx)
+	defer iter.Stop()
+	wg := sync.WaitGroup{}
+	tokens := make(chan struct{}, concurrency)
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			log.Fatalf("error iterating over URLs: %v", err)
+		}
+		url := doc.Data()["url"].(string)
+		if url == "" {
+			continue
+		}
+		wg.Add(1)
+		tokens <- struct{}{}
+		go func() {
+			defer func() {
+				wg.Done()
+				<-tokens
+			}()
+			fetch(url)
+		}()
+	}
+	wg.Wait()
+}
+
+func fetch(url string) {
+	log.Print(url)
+	res, err := http.Get(url)
+	if err != nil {
+		log.Printf("could not get URL %q: %v", url, err)
 		return
 	}
-	for _, line := range strings.Split(string(lines), "\n") {
-		if line == "" {
-			continue
-		}
-		fmt.Println(line)
-		res, err := http.Get(line)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		data, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		fmt.Printf("size: %d\n", len(data))
-		h := utils.ComputeHash(data)
-		fmt.Printf("hash: %s\n", h)
-		l := filepath.Join(indexFlag, index.HashToPath(h), index.EntryFilename)
-		e := index.IndexEntry{
-			Hash: h,
-			Size: len(data),
-			URLS: []string{line},
-		}
-		es, err := json.Marshal(e)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		fmt.Printf("%s\n", es)
-		err = os.MkdirAll(filepath.Dir(l), 0755)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		ioutil.WriteFile(l, es, 0644)
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("could not read HTTP body: %v", err)
+		return
 	}
+	h := utils.ComputeHash(data)
+	l := filepath.Join(indexFlag, index.HashToPath(h), index.EntryFilename)
+	e := index.IndexEntry{
+		Hash: h,
+		Size: len(data),
+		URLS: []string{url},
+	}
+	es, err := json.Marshal(e)
+	if err != nil {
+		log.Printf("could not marshal JSON: %v", err)
+		return
+	}
+	log.Printf("%s", es)
+	err = os.MkdirAll(filepath.Dir(l), 0755)
+	if err != nil {
+		log.Printf("could not create file: %v", err)
+		return
+	}
+	ioutil.WriteFile(l, es, 0644)
 }
 
 func main() {
@@ -99,6 +124,8 @@ func main() {
 			Run:   server,
 		})
 	rootCmd.PersistentFlags().StringVar(&indexFlag, "index", "", "path to index repository")
-	rootCmd.PersistentFlags().StringVar(&in, "in", "", "file with input URLs")
+	rootCmd.PersistentFlags().StringVar(&firebaseProject, "firebase-project", "", "Firebase project name")
+	rootCmd.PersistentFlags().StringVar(&firebaseCredentials, "firebase-credentials", "", "file with Firebase credentials")
+	rootCmd.PersistentFlags().IntVar(&concurrency, "concurrency", 10, "HTTP fetch concurrency")
 	rootCmd.Execute()
 }

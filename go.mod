@@ -3,6 +3,7 @@ module github.com/google/ent
 go 1.15
 
 require (
+	cloud.google.com/go/firestore v1.1.0
 	cloud.google.com/go/storage v1.15.0
 	github.com/BurntSushi/toml v0.3.1
 	github.com/fatih/color v1.12.0
@@ -24,6 +25,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	golang.org/x/text v0.3.6 // indirect
+	google.golang.org/api v0.45.0
 	google.golang.org/appengine v1.6.7
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

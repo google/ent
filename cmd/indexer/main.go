@@ -82,7 +82,7 @@ func server(cmd *cobra.Command, args []string) {
 				wg.Done()
 				<-tokens
 			}()
-			err := fetch(url)
+			_, err := fetch(url)
 			if err != nil {
 				log.Printf("could not fetch URL: %v", err)
 			}
@@ -92,24 +92,26 @@ func server(cmd *cobra.Command, args []string) {
 }
 
 func fetchCmd(cmd *cobra.Command, args []string) {
-	err := fetch(urlFlag)
+	e, err := fetch(urlFlag)
 	if err != nil {
 		log.Fatalf("could not fetch URL: %v", err)
 	}
+	// Print hash to stdout.
+	fmt.Printf("%s\n", e.Hash)
 }
 
-func fetch(urlString string) error {
+func fetch(urlString string) (*index.IndexEntry, error) {
 	log.Print(urlString)
 	parsedURL, err := url.Parse(urlString)
 	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
+		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
 	if parsedURL.User != nil {
-		return fmt.Errorf("non-empty user in URL")
+		return nil, fmt.Errorf("non-empty user in URL")
 	}
 	if parsedURL.Fragment != "" {
-		return fmt.Errorf("non-empty fragment in URL")
+		return nil, fmt.Errorf("non-empty fragment in URL")
 	}
 
 	urlString = parsedURL.String()
@@ -117,15 +119,15 @@ func fetch(urlString string) error {
 
 	res, err := http.Get(urlString)
 	if err != nil {
-		return fmt.Errorf("could not fetch URL %q: %w", urlString, err)
+		return nil, fmt.Errorf("could not fetch URL %q: %w", urlString, err)
 	}
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("invalid error code %d (%s)", res.StatusCode, res.Status)
+		return nil, fmt.Errorf("invalid error code %d (%s)", res.StatusCode, res.Status)
 	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return fmt.Errorf("could not read HTTP body: %w", err)
+		return nil, fmt.Errorf("could not read HTTP body: %w", err)
 	}
 	h := utils.ComputeHash(data)
 
@@ -136,16 +138,16 @@ func fetch(urlString string) error {
 		log.Printf("index entry existing: %q", l)
 		bytes, err := ioutil.ReadFile(l)
 		if err != nil {
-			return fmt.Errorf("could not read index entry: %w", err)
+			return nil, fmt.Errorf("could not read index entry: %w", err)
 		}
 		err = json.Unmarshal(bytes, &e)
 		if err != nil {
-			return fmt.Errorf("could not unmarshal JSON for index entry: %w", err)
+			return nil, fmt.Errorf("could not unmarshal JSON for index entry: %w", err)
 		}
 		if sort.SearchStrings(e.URLS, urlString) != -1 {
 			log.Printf("URL already indexed in entry: %+v", e)
 			// Nothing to do.
-			return nil
+			return &e, nil
 		}
 		e.URLS = append(e.URLS, urlString)
 		sort.Strings(e.URLS)
@@ -160,20 +162,20 @@ func fetch(urlString string) error {
 
 	es, err := json.Marshal(e)
 	if err != nil {
-		return fmt.Errorf("could not marshal JSON: %w", err)
+		return nil, fmt.Errorf("could not marshal JSON: %w", err)
 	}
 	err = os.MkdirAll(filepath.Dir(l), 0755)
 	if err != nil {
-		return fmt.Errorf("could not create file: %w", err)
+		return nil, fmt.Errorf("could not create file: %w", err)
 	}
 	err = ioutil.WriteFile(l, es, 0644)
 	if err != nil {
-		return fmt.Errorf("could not write to file: %w", err)
+		return nil, fmt.Errorf("could not write to file: %w", err)
 	}
 
 	log.Printf("index entry created: %q", l)
 
-	return nil
+	return &e, nil
 }
 
 func main() {

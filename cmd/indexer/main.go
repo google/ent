@@ -18,11 +18,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"cloud.google.com/go/firestore"
@@ -79,47 +82,98 @@ func server(cmd *cobra.Command, args []string) {
 				wg.Done()
 				<-tokens
 			}()
-			fetch(url)
+			err := fetch(url)
+			if err != nil {
+				log.Printf("could not fetch URL: %v", err)
+			}
 		}()
 	}
 	wg.Wait()
 }
 
-func get(cmd *cobra.Command, args []string) {
-	fetch(urlFlag)
+func fetchCmd(cmd *cobra.Command, args []string) {
+	err := fetch(urlFlag)
+	if err != nil {
+		log.Fatalf("could not fetch URL: %v", err)
+	}
 }
 
-func fetch(url string) {
-	log.Print(url)
-	res, err := http.Get(url)
+func fetch(urlString string) error {
+	log.Print(urlString)
+	parsedURL, err := url.Parse(urlString)
 	if err != nil {
-		log.Printf("could not get URL %q: %v", url, err)
-		return
+		return fmt.Errorf("invalid URL: %w", err)
 	}
+
+	if parsedURL.User != nil {
+		return fmt.Errorf("non-empty user in URL")
+	}
+	if parsedURL.Fragment != "" {
+		return fmt.Errorf("non-empty fragment in URL")
+	}
+
+	urlString = parsedURL.String()
+	log.Printf("fetching %q", urlString)
+
+	res, err := http.Get(urlString)
+	if err != nil {
+		return fmt.Errorf("could not fetch URL %q: %w", urlString, err)
+	}
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("invalid error code %d (%s)", res.StatusCode, res.Status)
+	}
+
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Printf("could not read HTTP body: %v", err)
-		return
+		return fmt.Errorf("could not read HTTP body: %w", err)
 	}
 	h := utils.ComputeHash(data)
+
 	l := filepath.Join(indexFlag, index.HashToPath(h), index.EntryFilename)
-	e := index.IndexEntry{
-		Hash: h,
-		Size: len(data),
-		URLS: []string{url},
+
+	var e index.IndexEntry
+	if _, err := os.Stat(l); err == nil {
+		log.Printf("index entry existing: %q", l)
+		bytes, err := ioutil.ReadFile(l)
+		if err != nil {
+			return fmt.Errorf("could not read index entry: %w", err)
+		}
+		err = json.Unmarshal(bytes, &e)
+		if err != nil {
+			return fmt.Errorf("could not unmarshal JSON for index entry: %w", err)
+		}
+		if sort.SearchStrings(e.URLS, urlString) != -1 {
+			log.Printf("URL already indexed in entry: %+v", e)
+			// Nothing to do.
+			return nil
+		}
+		e.URLS = append(e.URLS, urlString)
+		sort.Strings(e.URLS)
+	} else {
+		e = index.IndexEntry{
+			Hash: h,
+			Size: len(data),
+			URLS: []string{urlString},
+		}
 	}
+	log.Printf("index entry to create: %+v", e)
+
 	es, err := json.Marshal(e)
 	if err != nil {
-		log.Printf("could not marshal JSON: %v", err)
-		return
+		return fmt.Errorf("could not marshal JSON: %w", err)
 	}
-	log.Printf("%s", es)
 	err = os.MkdirAll(filepath.Dir(l), 0755)
 	if err != nil {
-		log.Printf("could not create file: %v", err)
-		return
+		return fmt.Errorf("could not create file: %w", err)
 	}
-	ioutil.WriteFile(l, es, 0644)
+	err = ioutil.WriteFile(l, es, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write to file: %w", err)
+	}
+
+	log.Printf("index entry created: %q", l)
+
+	return nil
 }
 
 func main() {
@@ -138,9 +192,9 @@ func main() {
 	rootCmd.AddCommand(serverCmd)
 
 	getCmd := &cobra.Command{
-		Use:   "get",
-		Short: "Index a single URL",
-		Run:   get,
+		Use:   "fetch",
+		Short: "Fetch and index a single URL",
+		Run:   fetchCmd,
 	}
 	getCmd.PersistentFlags().StringVar(&indexFlag, "index", "", "path to index repository")
 	getCmd.PersistentFlags().StringVar(&urlFlag, "url", "", "url of the entry to index")

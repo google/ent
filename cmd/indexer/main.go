@@ -34,10 +34,13 @@ import (
 )
 
 var (
-	indexFlag           string
+	indexFlag string
+
 	firebaseCredentials string
 	firebaseProject     string
 	concurrency         int
+
+	urlFlag string
 )
 
 type URL struct {
@@ -82,6 +85,10 @@ func server(cmd *cobra.Command, args []string) {
 	wg.Wait()
 }
 
+func get(cmd *cobra.Command, args []string) {
+	fetch(urlFlag)
+}
+
 func fetch(url string) {
 	log.Print(url)
 	res, err := http.Get(url)
@@ -117,15 +124,27 @@ func fetch(url string) {
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "indexer"}
-	rootCmd.AddCommand(
+
+	serverCmd :=
 		&cobra.Command{
 			Use:   "server",
 			Short: "Run the indexer server",
 			Run:   server,
-		})
-	rootCmd.PersistentFlags().StringVar(&indexFlag, "index", "", "path to index repository")
-	rootCmd.PersistentFlags().StringVar(&firebaseProject, "firebase-project", "", "Firebase project name")
-	rootCmd.PersistentFlags().StringVar(&firebaseCredentials, "firebase-credentials", "", "file with Firebase credentials")
-	rootCmd.PersistentFlags().IntVar(&concurrency, "concurrency", 10, "HTTP fetch concurrency")
+		}
+	serverCmd.PersistentFlags().StringVar(&indexFlag, "index", "", "path to index repository")
+	serverCmd.PersistentFlags().StringVar(&firebaseProject, "firebase-project", "", "Firebase project name")
+	serverCmd.PersistentFlags().StringVar(&firebaseCredentials, "firebase-credentials", "", "file with Firebase credentials")
+	serverCmd.PersistentFlags().IntVar(&concurrency, "concurrency", 10, "HTTP fetch concurrency")
+	rootCmd.AddCommand(serverCmd)
+
+	getCmd := &cobra.Command{
+		Use:   "get",
+		Short: "Index a single URL",
+		Run:   get,
+	}
+	getCmd.PersistentFlags().StringVar(&indexFlag, "index", "", "path to index repository")
+	getCmd.PersistentFlags().StringVar(&urlFlag, "url", "", "url of the entry to index")
+	rootCmd.AddCommand(getCmd)
+
 	rootCmd.Execute()
 }

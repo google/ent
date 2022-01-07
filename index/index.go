@@ -23,10 +23,12 @@ const (
 	EntryFilename = "entry.json"
 )
 
+// Vaguely similar to https://github.com/opencontainers/image-spec/blob/main/descriptor.md
 type IndexEntry struct {
-	Hash string   `json:"hash"`
-	Size int      `json:"size"`
-	URLS []string `json:"urls"`
+	MediaType string   `json:"mediaType"`
+	Digest    string   `json:"digest"`
+	Size      int      `json:"size"`
+	URLS      []string `json:"urls"`
 }
 
 // Split the hash into its prefix, and then two character chunks, separated by slashes, so that each

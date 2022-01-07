@@ -97,7 +97,7 @@ func fetchCmd(cmd *cobra.Command, args []string) {
 		log.Fatalf("could not fetch URL: %v", err)
 	}
 	// Print hash to stdout.
-	fmt.Printf("%s\n", e.Hash)
+	fmt.Printf("%s\n", e.Digest)
 }
 
 func fetch(urlString string) (*index.IndexEntry, error) {
@@ -144,18 +144,25 @@ func fetch(urlString string) (*index.IndexEntry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not unmarshal JSON for index entry: %w", err)
 		}
+
 		if sort.SearchStrings(e.URLS, urlString) != -1 {
-			log.Printf("URL already indexed in entry: %+v", e)
-			// Nothing to do.
-			return &e, nil
+			// URL already in the indexed entry.
+		} else {
+			// Add the new URL.
+			e.URLS = append(e.URLS, urlString)
+			sort.Strings(e.URLS)
 		}
-		e.URLS = append(e.URLS, urlString)
-		sort.Strings(e.URLS)
+
+		// Fix all fields just in case.
+		e.MediaType = http.DetectContentType(data)
+		e.Digest = h
+		e.Size = len(data)
 	} else {
 		e = index.IndexEntry{
-			Hash: h,
-			Size: len(data),
-			URLS: []string{urlString},
+			MediaType: http.DetectContentType(data),
+			Digest:    h,
+			Size:      len(data),
+			URLS:      []string{urlString},
 		}
 	}
 	log.Printf("index entry to create: %+v", e)

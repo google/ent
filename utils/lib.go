@@ -19,11 +19,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
-	"github.com/multiformats/go-multihash"
 )
 
 type Descriptor struct {
@@ -32,9 +32,6 @@ type Descriptor struct {
 	Digest     string
 	Attributes map[string]string
 	Data       []byte
-}
-
-type Link struct {
 }
 
 func NewProtoNode() *merkledag.ProtoNode {
@@ -91,16 +88,21 @@ func RemoveLink(node *merkledag.ProtoNode, name string) error {
 	return node.RemoveNodeLink(name)
 }
 
-func Hash(c cid.Cid) string {
-	return hex.EncodeToString([]byte(c.Hash()))
-	// return c.Hash().B58String()
+type Hash string
+
+func ParseHash(s string) (Hash, error) {
+	if strings.HasPrefix(s, "sha256:") {
+		_, err := hex.DecodeString(s[7:])
+		if err != nil {
+			return "", err
+		}
+		return Hash(s), nil
+	} else {
+		return "", fmt.Errorf("invalid hash: %s", s)
+	}
 }
 
-func ParseHash(s string) (multihash.Multihash, error) {
-	return multihash.FromHexString(s)
-}
-
-func ComputeHash(b []byte) string {
+func ComputeHash(b []byte) Hash {
 	h := sha256.Sum256(b)
-	return "sha256:" + hex.EncodeToString(h[:])
+	return Hash("sha256:" + hex.EncodeToString(h[:]))
 }

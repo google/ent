@@ -1,11 +1,11 @@
 package objectstore
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
 	"github.com/google/ent/datastore"
+	"github.com/google/ent/utils"
 	"github.com/multiformats/go-multihash"
 )
 
@@ -15,29 +15,23 @@ type Store struct {
 	Inner datastore.DataStore
 }
 
-func (s Store) Get(ctx context.Context, h multihash.Multihash) ([]byte, error) {
-	b, err := s.Inner.Get(ctx, h.HexString())
+func (s Store) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
+	b, err := s.Inner.Get(ctx, string(h))
 	if err != nil {
 		return nil, err
 	}
-	actualHash, err := multihash.Sum(b, hashType, -1)
-	if err != nil {
-		return nil, err
-	}
-	if bytes.Compare(actualHash, h) != 0 {
-		return nil, fmt.Errorf("mismatching hashes: wanted:%q got:%q", h.String(), actualHash.String())
+	actualHash := utils.ComputeHash(b)
+	if actualHash != h {
+		return nil, fmt.Errorf("mismatching hashes: wanted:%q got:%q", string(h), string(actualHash))
 	}
 	return b, nil
 }
 
-func (s Store) Add(ctx context.Context, b []byte) (multihash.Multihash, error) {
-	h, err := multihash.Sum(b, hashType, -1)
+func (s Store) Add(ctx context.Context, b []byte) (utils.Hash, error) {
+	h := utils.ComputeHash(b)
+	err := s.Inner.Set(ctx, string(h), b)
 	if err != nil {
-		return nil, err
-	}
-	err = s.Inner.Set(ctx, h.HexString(), b)
-	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return h, nil
 }

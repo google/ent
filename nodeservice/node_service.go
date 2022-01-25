@@ -18,14 +18,14 @@ package nodeservice
 import (
 	"context"
 
+	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/multiformats/go-multihash"
 )
 
 type ObjectStore interface {
-	GetObject(ctx context.Context, h multihash.Multihash) ([]byte, error)
-	AddObject(ctx context.Context, b []byte) (multihash.Multihash, error)
+	GetObject(ctx context.Context, h utils.Hash) ([]byte, error)
+	AddObject(ctx context.Context, b []byte) (utils.Hash, error)
 }
 
 // https://github.com/ipfs/go-ipld-format/blob/579737706ba5da3e550111621e2ab1bf122ed53f/merkledag.go

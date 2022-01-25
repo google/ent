@@ -32,32 +32,36 @@ type DataStore struct {
 	Inner objectstore.Store
 }
 
-func (s DataStore) GetObject(ctx context.Context, h multihash.Multihash) ([]byte, error) {
+func (s DataStore) GetObject(ctx context.Context, h utils.Hash) ([]byte, error) {
 	return s.Inner.Get(ctx, h)
 }
 
-func (s DataStore) AddObject(ctx context.Context, b []byte) (multihash.Multihash, error) {
+func (s DataStore) AddObject(ctx context.Context, b []byte) (utils.Hash, error) {
 	return s.Inner.Add(ctx, b)
 }
 
 func (s DataStore) Has(ctx context.Context, c cid.Cid) (bool, error) {
-	_, err := s.Inner.Get(ctx, c.Hash())
-	return err == nil, nil
+	// _, err := s.Inner.Get(ctx, c.Hash())
+	// return err == nil, nil
+	return false, fmt.Errorf("not implemented")
 }
 
 func (s DataStore) Get(ctx context.Context, c cid.Cid) (format.Node, error) {
-	bytes, err := s.Inner.Get(ctx, c.Hash())
-	if err != nil {
-		return nil, err
-	}
-	switch c.Prefix().Codec {
-	case cid.DagProtobuf:
-		return utils.ParseProtoNode(bytes)
-	case cid.Raw:
-		return utils.ParseRawNode(bytes)
-	default:
-		return nil, fmt.Errorf("invalid codec")
-	}
+	return nil, fmt.Errorf("not implemented")
+	/*
+		bytes, err := s.Inner.Get(ctx, c.Hash())
+		if err != nil {
+			return nil, err
+		}
+		switch c.Prefix().Codec {
+		case cid.DagProtobuf:
+			return utils.ParseProtoNode(bytes)
+		case cid.Raw:
+			return utils.ParseRawNode(bytes)
+		default:
+			return nil, fmt.Errorf("invalid codec")
+		}
+	*/
 }
 
 func (s DataStore) GetMany(ctx context.Context, cc []cid.Cid) <-chan *format.NodeOption {

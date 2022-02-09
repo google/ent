@@ -34,7 +34,6 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
-	"github.com/ipfs/go-cid"
 	"google.golang.org/appengine"
 )
 
@@ -83,10 +82,6 @@ func hostSegments(host string) []string {
 	} else {
 		return hostSegments
 	}
-}
-
-func redirectToCid(c *gin.Context, target cid.Cid, path string) {
-	c.Redirect(http.StatusFound, fmt.Sprintf("//%s.%s.%s%s", target.String(), wwwSegment, domainName, path))
 }
 
 func main() {
@@ -481,36 +476,33 @@ func renderHandler(c *gin.Context) {
 		return
 	}
 
-	root := cid.Undef
-	var err error
-
 	switch hostSegments[1] {
 	case wwwSegment:
-		baseDomain := hostSegments[0]
-		log.Printf("base domain: %s", baseDomain)
-		if baseDomain == "empty" {
-			/*
-				newNode := utils.NewProtoNode()
-				err := blobStore.Add(c, newNode)
-				if err != nil {
-					log.Print(err)
-					c.AbortWithStatus(http.StatusNotFound)
-					return
-				}
-				target := newNode.Cid()
-				log.Printf("target: %s", target.String())
-				redirectToCid(c, target, "")
-			*/
-			return
-		}
+		/*
+			baseDomain := hostSegments[0]
+			log.Printf("base domain: %s", baseDomain)
+			if baseDomain == "empty" {
+					newNode := utils.NewProtoNode()
+					err := blobStore.Add(c, newNode)
+					if err != nil {
+						log.Print(err)
+						c.AbortWithStatus(http.StatusNotFound)
+						return
+					}
+					target := newNode.Cid()
+					log.Printf("target: %s", target.String())
+					redirectToCid(c, target, "")
+				return
+			}
 
-		root, err = cid.Decode(baseDomain)
-		if err != nil {
-			log.Print(err)
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		log.Printf("root: %v", root)
+			root, err = cid.Decode(baseDomain)
+			if err != nil {
+				log.Print(err)
+				c.AbortWithStatus(http.StatusNotFound)
+				return
+			}
+			log.Printf("root: %v", root)
+		*/
 	default:
 		log.Printf("invalid segment")
 		c.AbortWithStatus(http.StatusBadRequest)

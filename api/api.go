@@ -1,5 +1,5 @@
 //
-// Copyright 2021 The Ent Authors.
+// Copyright 2022 The Ent Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,19 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nodeservice
+package api
 
-import (
-	"context"
+import "github.com/google/ent/utils"
 
-	"github.com/google/ent/utils"
+const (
+	APIV1BLOBSGET = "/api/v1/blobs/get"
+	APIV1BLOBSPUT = "/api/v1/blobs/put"
 )
 
-type ObjectStore interface {
-	ObjectGetter
-	Put(ctx context.Context, b []byte) (utils.Hash, error)
+type GetRequest struct {
+	Items []utils.NodeID `json:"items"`
 }
 
-type ObjectGetter interface {
-	Get(ctx context.Context, h utils.Hash) ([]byte, error)
+type GetResponse struct {
+	Items map[utils.Hash][]byte `json:"items"`
+}
+
+type PutRequest struct {
+	Blobs [][]byte `json:"blobs"`
+}
+
+type PutResponse struct {
+	Hash []utils.Hash `json:"hash"`
 }

@@ -20,73 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-
-	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 )
-
-type Descriptor struct {
-	MediaType  string
-	Size       uint64
-	Digest     string
-	Attributes map[string]string
-	Data       []byte
-}
-
-func NewProtoNode() *merkledag.ProtoNode {
-	node := merkledag.ProtoNode{}
-	node.SetCidBuilder(merkledag.V1CidPrefix())
-	return &node
-}
-
-func ParseProtoNode(b []byte) (*merkledag.ProtoNode, error) {
-	node, err := merkledag.DecodeProtobuf(b)
-	if err != nil {
-		return nil, err
-	}
-	node.SetCidBuilder(merkledag.V1CidPrefix())
-	return node, nil
-}
-
-func ParseRawNode(b []byte) (*merkledag.RawNode, error) {
-	node, err := merkledag.NewRawNodeWPrefix(b, merkledag.V1CidPrefix())
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
-func ParseNodeFromBytes(c cid.Cid, b []byte) (format.Node, error) {
-	codec := c.Prefix().Codec
-	switch codec {
-	case cid.DagProtobuf:
-		return ParseProtoNode(b)
-	case cid.Raw:
-		return ParseRawNode(b)
-	default:
-		return nil, fmt.Errorf("invalid codec: %d (%s)", codec, cid.CodecToStr[codec])
-	}
-}
-
-func GetLink(node *merkledag.ProtoNode, name string) (cid.Cid, error) {
-	link, err := node.GetNodeLink(name)
-	if err != nil {
-		return cid.Undef, err
-	}
-	return link.Cid, nil
-}
-
-func SetLink(node *merkledag.ProtoNode, name string, hash cid.Cid) error {
-	node.RemoveNodeLink(name) // Ignore errors
-	return node.AddRawLink(name, &format.Link{
-		Cid: hash,
-	})
-}
-
-func RemoveLink(node *merkledag.ProtoNode, name string) error {
-	return node.RemoveNodeLink(name)
-}
 
 type Hash string
 
@@ -98,11 +32,16 @@ func ParseHash(s string) (Hash, error) {
 		}
 		return Hash(s), nil
 	} else {
-		return "", fmt.Errorf("invalid hash: %s", s)
+		return "", fmt.Errorf("invalid hash: %q", s)
 	}
 }
 
 func ComputeHash(b []byte) Hash {
 	h := sha256.Sum256(b)
 	return Hash("sha256:" + hex.EncodeToString(h[:]))
+}
+
+type NodeID struct {
+	Root Hash
+	Path []Selector
 }

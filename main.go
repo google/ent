@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -30,28 +29,25 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/ent/api"
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-merkledag"
 	"google.golang.org/appengine"
 )
 
 var (
-	blobStore nodeservice.NodeService
-	tagStore  datastore.DataStore
+	blobStore nodeservice.ObjectStore
 
 	handlerBrowse http.Handler
 	handlerWWW    http.Handler
 )
 
 const objectsBucketName = "ent-objects"
-const tagsBucketName = "multiverse-312721-key"
 
 const wwwSegment = "www"
-const tagsSegment = "tags"
 
 var domainName = "localhost:8088"
 
@@ -104,29 +100,20 @@ func main() {
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
 		log.Print(err)
-		blobStore = nodeservice.DataStore{
-			Inner: objectstore.Store{
+		blobStore =
+			objectstore.Store{
 				Inner: datastore.File{
 					DirName: "data/objects",
 				},
-			},
-		}
-		tagStore = datastore.File{
-			DirName: "data/tags",
-		}
+			}
 	} else {
-		blobStore = nodeservice.DataStore{
-			Inner: objectstore.Store{
+		blobStore =
+			objectstore.Store{
 				Inner: datastore.Cloud{
 					Client:     storageClient,
 					BucketName: objectsBucketName,
 				},
-			},
-		}
-		tagStore = datastore.Cloud{
-			Client:     storageClient,
-			BucketName: tagsBucketName,
-		}
+			}
 	}
 
 	{
@@ -147,8 +134,8 @@ func main() {
 		// router.POST("/api/objects/get", apiObjectsGetHandler)
 		// router.POST("/api/objects/update", apiObjectsUpdateHandler)
 
-		router.POST("/api/v1/blobs/get", apiGetHandler)
-		router.POST("/api/v1/blobs/put", apiPutHandler)
+		router.POST(api.APIV1BLOBSGET, apiGetHandler)
+		router.POST(api.APIV1BLOBSPUT, apiPutHandler)
 
 		router.POST("/api/v1/links/get", apiGetHandler)
 		router.POST("/api/v1/links/update", apiPutHandler)
@@ -166,8 +153,14 @@ func main() {
 		handlerWWW = router
 	}
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8088"
+		log.Printf("Defaulting to port %s", port)
+	}
+
 	s := &http.Server{
-		Addr:           ":8088",
+		Addr:           ":" + port,
 		Handler:        http.HandlerFunc(handlerRoot),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -205,29 +198,6 @@ func parseHost(p string) []string {
 		return []string{}
 	} else {
 		return strings.Split(strings.TrimPrefix(p, "/"), "/")
-	}
-}
-
-func postTagHandler(c *gin.Context) {
-	segments := parsePath(c.Param("path"))
-	tagName := segments[1]
-	tagValueString, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Print(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	tagValue, err := cid.Decode(string(tagValueString))
-	if err != nil {
-		log.Print(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	err = tagStore.Set(c, tagName, []byte(tagValue.String()))
-	if err != nil {
-		log.Print(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
 	}
 }
 
@@ -338,31 +308,10 @@ type RemoveRequest struct {
 	Path string
 }
 
-type PutRequest struct {
-	Blobs [][]byte
-}
-
-type UploadResponse struct {
-	Hash []string `json:"hash"`
-}
-
 type MutateRequest struct{}
 
-type GetRequest struct {
-	Items []GetItem `json:"items"`
-}
-
-type GetItem struct {
-	Root string
-	Path []utils.Selector
-}
-
-type GetResponse struct {
-	Items map[string][]byte `json:"items"`
-}
-
 func apiPutHandler(c *gin.Context) {
-	var req PutRequest
+	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
 		log.Printf("could not parse request: %v", err)
@@ -370,16 +319,16 @@ func apiPutHandler(c *gin.Context) {
 		return
 	}
 
-	var res UploadResponse
-	res.Hash = make([]string, 0, len(req.Blobs))
+	var res api.PutResponse
+	res.Hash = make([]utils.Hash, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
-		h, err := blobStore.AddObject(c, blob)
+		h, err := blobStore.Put(c, blob)
 		if err != nil {
 			log.Printf("error adding blob: %s", err)
 			continue
 		}
 		log.Printf("added blob: %s", h)
-		res.Hash = append(res.Hash, string(h))
+		res.Hash = append(res.Hash, h)
 	}
 
 	log.Printf("res: %#v", res)
@@ -390,7 +339,7 @@ func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
 	log.Printf("fetching nodes for %s depth %d", root, depth)
 	var nodes [][]byte
 
-	blob, err := blobStore.GetObject(c, root)
+	blob, err := blobStore.Get(c, root)
 	if err != nil {
 		log.Printf("error getting blob %q: %s", root, err)
 		return nil, err
@@ -427,27 +376,22 @@ func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
 }
 
 func apiGetHandler(c *gin.Context) {
-	var req GetRequest
+	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)
 	log.Printf("req: %#v", req)
 
 	var depth uint = 10
 
-	var res GetResponse
-	res.Items = make(map[string][]byte, len(req.Items))
+	var res api.GetResponse
+	res.Items = make(map[utils.Hash][]byte, len(req.Items))
 	for _, item := range req.Items {
-		h, err := utils.ParseHash(item.Root)
+		blobs, err := fetchNodes(c, item.Root, depth)
 		if err != nil {
-			log.Printf("error parsing hash %q: %s", item.Root, err)
-			continue
-		}
-		blobs, err := fetchNodes(c, h, depth)
-		if err != nil {
-			log.Printf("error getting blob %q: %s", h, err)
+			log.Printf("error getting blob %q: %s", item.Root, err)
 			continue
 		}
 		for _, blob := range blobs {
-			res.Items[string(utils.ComputeHash(blob))] = blob
+			res.Items[utils.ComputeHash(blob)] = blob
 		}
 	}
 
@@ -459,7 +403,7 @@ func traverse(c context.Context, root utils.Hash, segments []utils.Selector) (ut
 	if len(segments) == 0 {
 		return root, nil
 	} else {
-		nodeRaw, err := blobStore.GetObject(c, root)
+		nodeRaw, err := blobStore.Get(c, root)
 		if err != nil {
 			return "", fmt.Errorf("could not get blob %s: %w", root, err)
 		}
@@ -478,89 +422,6 @@ func traverse(c context.Context, root utils.Hash, segments []utils.Selector) (ut
 		}
 		log.Printf("next: %v", next)
 		return traverse(c, nextHash, segments[1:])
-	}
-}
-
-func traverseAdd(c context.Context, root cid.Cid, segments []string, nodeToAdd cid.Cid) (cid.Cid, error) {
-	log.Printf("traverseAdd %v/%#v", root, segments)
-	if len(segments) == 0 {
-		return nodeToAdd, nil
-	} else {
-		node, err := blobStore.Get(c, root)
-		if err != nil {
-			return cid.Undef, fmt.Errorf("could not get blob %s", root)
-		}
-		switch node := node.(type) {
-		case *merkledag.ProtoNode:
-			head := segments[0]
-			var next cid.Cid
-			next, err = utils.GetLink(node, head)
-			if err == merkledag.ErrLinkNotFound {
-				// Ok
-				newNode := utils.NewProtoNode()
-				err = blobStore.Add(c, newNode)
-				// TODO
-				next = node.Cid()
-			} else if err != nil {
-				return cid.Undef, fmt.Errorf("could not get link: %v", err)
-			}
-			log.Printf("next: %v", next)
-
-			newHash, err := traverseAdd(c, next, segments[1:], nodeToAdd)
-			if err != nil {
-				return cid.Undef, fmt.Errorf("could not call recursively: %v", err)
-			}
-
-			err = utils.SetLink(node, head, newHash)
-			if err != nil {
-				return cid.Undef, fmt.Errorf("could not add link: %v", err)
-			}
-			return node.Cid(), blobStore.Add(c, node)
-		default:
-			return cid.Undef, fmt.Errorf("incorrect node type")
-		}
-	}
-}
-
-func traverseRemove(c context.Context, root cid.Cid, segments []string) (cid.Cid, error) {
-	log.Printf("traverseRemove %v/%#v", root, segments)
-	node, err := blobStore.Get(c, root)
-	if err != nil {
-		return cid.Undef, fmt.Errorf("could not get node %s", root)
-	}
-	switch node := node.(type) {
-	case *merkledag.ProtoNode:
-		if len(segments) == 1 {
-			utils.RemoveLink(node, segments[0])
-		} else {
-			head := segments[0]
-			var next cid.Cid
-			next, err = utils.GetLink(node, head)
-			if err == merkledag.ErrLinkNotFound {
-				// Ok
-				newNode := utils.NewProtoNode()
-				err = blobStore.Add(c, newNode)
-				// TODO
-				next = newNode.Cid()
-
-			} else if err != nil {
-				return cid.Undef, fmt.Errorf("could not get link: %v", err)
-			}
-			log.Printf("next: %v", next)
-
-			newHash, err := traverseRemove(c, next, segments[1:])
-			if err != nil {
-				return cid.Undef, fmt.Errorf("could not call recursively: %v", err)
-			}
-
-			err = utils.SetLink(node, head, newHash)
-			if err != nil {
-				return cid.Undef, fmt.Errorf("could not add link: %v", err)
-			}
-		}
-		return node.Cid(), blobStore.Add(c, node)
-	default:
-		return cid.Undef, nil
 	}
 }
 
@@ -594,7 +455,7 @@ func browseBlobHandler(c *gin.Context) {
 		return
 	}
 	log.Printf("root: %v", root)
-	nodeRaw, err := blobStore.GetObject(c, target)
+	nodeRaw, err := blobStore.Get(c, target)
 	if err != nil {
 		log.Print(err)
 		c.Abort()
@@ -628,16 +489,18 @@ func renderHandler(c *gin.Context) {
 		baseDomain := hostSegments[0]
 		log.Printf("base domain: %s", baseDomain)
 		if baseDomain == "empty" {
-			newNode := utils.NewProtoNode()
-			err := blobStore.Add(c, newNode)
-			if err != nil {
-				log.Print(err)
-				c.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-			target := newNode.Cid()
-			log.Printf("target: %s", target.String())
-			redirectToCid(c, target, "")
+			/*
+				newNode := utils.NewProtoNode()
+				err := blobStore.Add(c, newNode)
+				if err != nil {
+					log.Print(err)
+					c.AbortWithStatus(http.StatusNotFound)
+					return
+				}
+				target := newNode.Cid()
+				log.Printf("target: %s", target.String())
+				redirectToCid(c, target, "")
+			*/
 			return
 		}
 
@@ -648,21 +511,6 @@ func renderHandler(c *gin.Context) {
 			return
 		}
 		log.Printf("root: %v", root)
-	case tagsSegment:
-		// tagValueBytes, err := tagStore.Get(c, hostSegments[0])
-		// if err != nil {
-		// 	log.Print(err)
-		// 	c.AbortWithStatus(http.StatusInternalServerError)
-		// 	return
-		// }
-		// tagValue, err := cid.Decode(string(tagValueBytes))
-		// if err != nil {
-		// 	log.Print(err)
-		// 	c.AbortWithStatus(http.StatusInternalServerError)
-		// 	return
-		// }
-		// serveWWW(c, tagValue, segments)
-		return
 	default:
 		log.Printf("invalid segment")
 		c.AbortWithStatus(http.StatusBadRequest)

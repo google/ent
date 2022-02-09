@@ -17,6 +17,8 @@ package index
 
 import (
 	"strings"
+
+	"github.com/google/ent/utils"
 )
 
 const (
@@ -33,8 +35,8 @@ type IndexEntry struct {
 
 // Split the hash into its prefix, and then two character chunks, separated by slashes, so that each
 // directory contains at most 255 entries.
-func HashToPath(hash string) string {
-	s := strings.Split(hash, ":")
+func HashToPath(hash utils.Hash) string {
+	s := strings.Split(string(hash), ":")
 	out := s[0]
 	for i := 0; i < len(s[1])/2; i++ {
 		out += "/" + s[1][i*2:(i+1)*2]

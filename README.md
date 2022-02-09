@@ -132,3 +132,20 @@ will detect that and produce an error.
 
 There is no process for cleaning up / fixing inconsistent entries in the index
 (yet).
+
+## Blob store
+
+TODO
+
+## Node store
+
+TODO
+
+## Comparison with other systems
+
+### IPFS
+
+https://ipfs.io/
+
+IPFS aims to be a fully decentralized and censorship-resistant protocol and
+ecosystem, which heavily relies on content-addressability.

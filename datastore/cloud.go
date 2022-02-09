@@ -28,13 +28,6 @@ type Cloud struct {
 	BucketName string
 }
 
-func (s Cloud) Set(ctx context.Context, name string, value []byte) error {
-	wc := s.Client.Bucket(s.BucketName).Object(name).NewWriter(ctx)
-	defer wc.Close()
-	_, err := wc.Write(value)
-	return err
-}
-
 func (s Cloud) Get(ctx context.Context, name string) ([]byte, error) {
 	rc, err := s.Client.Bucket(s.BucketName).Object(name).NewReader(ctx)
 	if err != nil {
@@ -46,6 +39,13 @@ func (s Cloud) Get(ctx context.Context, name string) ([]byte, error) {
 		return nil, err
 	}
 	return body, nil
+}
+
+func (s Cloud) Put(ctx context.Context, name string, value []byte) error {
+	wc := s.Client.Bucket(s.BucketName).Object(name).NewWriter(ctx)
+	defer wc.Close()
+	_, err := wc.Write(value)
+	return err
 }
 
 func (s Cloud) Has(ctx context.Context, name string) (bool, error) {

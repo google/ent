@@ -6,10 +6,7 @@ import (
 
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/utils"
-	"github.com/multiformats/go-multihash"
 )
-
-const hashType = multihash.SHA2_256
 
 type Store struct {
 	Inner datastore.DataStore
@@ -27,9 +24,9 @@ func (s Store) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	return b, nil
 }
 
-func (s Store) Add(ctx context.Context, b []byte) (utils.Hash, error) {
+func (s Store) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	h := utils.ComputeHash(b)
-	err := s.Inner.Set(ctx, string(h), b)
+	err := s.Inner.Put(ctx, string(h), b)
 	if err != nil {
 		return "", err
 	}

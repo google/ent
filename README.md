@@ -50,14 +50,14 @@ ent help
 
 ## Examples
 
-In order to fetch a file with a given hash, the `ent cat` subcommand can be
+In order to fetch a file with a given hash, the `ent get` subcommand can be
 used.
 
 You can try the following command in your terminal, which fetches the text of
 the _Treasure Island_ book:
 
 ```console
-$ ent cat sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | head
+$ ent get sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | head
 The Project Gutenberg EBook of Treasure Island, by Robert Louis Stevenson
 
 This eBook is for the use of anyone anywhere in the United States and most
@@ -80,7 +80,7 @@ You can also manually double check that the returned file does in fact
 correspond to the expected hash:
 
 ```console
-$ ent cat sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
+$ ent get sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
 4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192  -
 ```
 

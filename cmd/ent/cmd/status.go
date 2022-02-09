@@ -17,25 +17,17 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"os"
 
+	"github.com/fatih/color"
+	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
 
-func get(hash utils.Hash) {
-	config := readConfig()
-	objectGetter := getObjectGetter(config)
-	object, err := objectGetter.Get(context.Background(), hash)
-	if err != nil {
-		log.Fatalf("could not download target: %s", err)
-	}
-	os.Stdout.Write(object)
-}
-
-var getCmd = &cobra.Command{
-	Use:  "get [hash]",
+var statusCmd = &cobra.Command{
+	Use:  "status [hash]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hash, err := utils.ParseHash(args[0])
@@ -43,6 +35,29 @@ var getCmd = &cobra.Command{
 			log.Fatalf("could not parse hash: %v", err)
 			return
 		}
-		get(hash)
+		status(hash)
 	},
+}
+
+func status(hash utils.Hash) {
+	config := readConfig()
+	for _, remote := range config.Remotes {
+		var objectGetter nodeservice.ObjectGetter
+		if remote.Index {
+			objectGetter = nodeservice.IndexClient{
+				BaseURL: remote.URL,
+			}
+		} else {
+			objectGetter = nodeservice.Remote{
+				APIURL: remote.URL,
+			}
+		}
+		marker := color.GreenString("✓")
+		_, err := objectGetter.Get(context.Background(), hash)
+		if err != nil {
+			marker = color.RedString("✗")
+		}
+		fmt.Printf("%s %s [%s]\n", color.YellowString(string(hash)), marker, remote.Name)
+	}
+
 }

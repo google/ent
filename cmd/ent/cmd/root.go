@@ -121,4 +121,5 @@ func init() {
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(putCmd)
+	rootCmd.AddCommand(statusCmd)
 }

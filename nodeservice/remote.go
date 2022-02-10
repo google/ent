@@ -60,11 +60,12 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 		return nil, fmt.Errorf("error decoding JSON response: %w", err)
 	}
 
-	if len(res.Items) != 1 {
+	item, ok := res.Items[h]
+	if !ok {
 		return nil, ErrNotFound
 	}
 
-	return res.Items[h], nil
+	return item, nil
 }
 
 func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {

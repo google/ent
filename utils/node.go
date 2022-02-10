@@ -13,7 +13,7 @@ type Node struct {
 
 type Link struct {
 	Type uint
-	Hash string
+	Hash Hash
 }
 
 type Selector struct {

@@ -35,6 +35,7 @@ import (
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
 	"google.golang.org/appengine"
+	"google.golang.org/appengine/memcache"
 )
 
 var (
@@ -42,6 +43,8 @@ var (
 
 	handlerBrowse http.Handler
 	handlerWWW    http.Handler
+
+	enableMemcache = false
 )
 
 const (
@@ -148,6 +151,11 @@ func main() {
 		router := gin.Default()
 		router.GET("/*path", renderHandler)
 		handlerWWW = router
+	}
+
+	if os.Getenv("ENABLE_MEMCACHE") != "" {
+		enableMemcache = true
+		log.Printf("memcache enabled")
 	}
 
 	port := os.Getenv("PORT")
@@ -383,11 +391,20 @@ func apiGetHandler(c *gin.Context) {
 			continue
 		}
 		for _, blob := range blobs {
-			res.Items[utils.ComputeHash(blob)] = blob
+			hash := utils.ComputeHash(blob)
+			res.Items[hash] = blob
+			if enableMemcache {
+				err := memcache.Add(c, &memcache.Item{
+					Key:   string(hash),
+					Value: blob,
+				})
+				if err != nil {
+					log.Printf("error adding to memcache: %s", err)
+				}
+			}
 		}
 	}
 
-	log.Printf("res: %#v", res)
 	c.JSON(http.StatusOK, res)
 }
 

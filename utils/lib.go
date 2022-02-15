@@ -26,6 +26,15 @@ type Hash string
 
 func ParseHash(s string) (Hash, error) {
 	if strings.HasPrefix(s, "sha256:") {
+		rest := s[7:]
+		if len(rest) != 64 {
+			return "", fmt.Errorf("invalid hash: %q", s)
+		}
+		for _, c := range rest {
+			if !strings.Contains("0123456789abcdef", string(c)) {
+				return "", fmt.Errorf("invalid hash: %q", s)
+			}
+		}
 		_, err := hex.DecodeString(s[7:])
 		if err != nil {
 			return "", err

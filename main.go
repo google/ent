@@ -221,7 +221,7 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 				linkPath = append(linkPath, selector)
 				links = append(links, UILink{
 					Selector: selector,
-					Hash:     l.Hash,
+					Hash:     string(l.Hash),
 					URL:      path.Join("/", "web", string(root), utils.PrintPath(linkPath)),
 				})
 			}
@@ -355,12 +355,7 @@ func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
 	} else {
 		for _, links := range node.Links {
 			for _, link := range links {
-				hash, err := utils.ParseHash(link.Hash)
-				if err != nil {
-					log.Printf("error parsing link: %s", err)
-					continue
-				}
-				nn, err := fetchNodes(c, hash, depth-1)
+				nn, err := fetchNodes(c, link.Hash, depth-1)
 				if err != nil {
 					log.Printf("error fetching nodes: %s", err)
 					continue
@@ -413,12 +408,8 @@ func traverse(c context.Context, root utils.Hash, segments []utils.Selector) (ut
 		if err != nil {
 			return "", fmt.Errorf("could not traverse %s/%v: %w", root, selector, err)
 		}
-		nextHash, err := utils.ParseHash(next.Hash)
-		if err != nil {
-			return "", fmt.Errorf("invalid hash: %w", err)
-		}
 		log.Printf("next: %v", next)
-		return traverse(c, nextHash, segments[1:])
+		return traverse(c, next.Hash, segments[1:])
 	}
 }
 

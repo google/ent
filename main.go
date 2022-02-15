@@ -44,9 +44,11 @@ var (
 	handlerWWW    http.Handler
 )
 
-const objectsBucketName = "ent-objects"
-
-const wwwSegment = "www"
+const (
+	objectsBucketName = "ent-objects"
+	wwwSegment        = "www"
+	defaultPort       = 27333
+)
 
 var domainName = "localhost:8088"
 
@@ -150,7 +152,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8088"
+		port = fmt.Sprintf("%d", defaultPort)
 		log.Printf("Defaulting to port %s", port)
 	}
 

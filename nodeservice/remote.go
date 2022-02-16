@@ -29,6 +29,7 @@ import (
 
 type Remote struct {
 	APIURL string
+	APIKey string
 }
 
 var (
@@ -46,7 +47,7 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error encoding JSON request: %w", err)
 	}
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET, "application/json", &reqBytes)
+	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET+"?key="+s.APIKey, "application/json", &reqBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	if err != nil {
 		return "", fmt.Errorf("error encoding JSON request: %w", err)
 	}
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSPUT, "application/json", &reqBytes)
+	r, err := http.Post(s.APIURL+api.APIV1BLOBSPUT+"?key="+s.APIKey, "application/json", &reqBytes)
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +103,7 @@ func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	}
 	reqBytes := bytes.Buffer{}
 	json.NewEncoder(&reqBytes).Encode(req)
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET, "application/json", &reqBytes)
+	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET+"?key="+s.APIKey, "application/json", &reqBytes)
 	if err != nil {
 		log.Fatal(err)
 	}

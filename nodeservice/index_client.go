@@ -60,3 +60,7 @@ func (c IndexClient) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	}
 	return target, nil
 }
+
+func (c IndexClient) Has(ctx context.Context, h utils.Hash) (bool, error) {
+	return false, nil
+}

@@ -44,6 +44,9 @@ var (
 	handlerWWW    http.Handler
 
 	enableMemcache = false
+
+	readAPIKey      = ""
+	readWriteAPIKey = ""
 )
 
 const (
@@ -100,6 +103,16 @@ func main() {
 		log.Printf("memcache enabled")
 	} else {
 		log.Printf("memcache disabled")
+	}
+
+	readAPIKey = os.Getenv("READ_API_KEY")
+	if readAPIKey != "" {
+		log.Printf("read API key: %q", readAPIKey)
+	}
+
+	readWriteAPIKey = os.Getenv("READ_WRITE_API_KEY")
+	if readWriteAPIKey != "" {
+		log.Printf("read write API key: %q", readWriteAPIKey)
 	}
 
 	ctx := context.Background()
@@ -330,6 +343,13 @@ type RemoveRequest struct {
 type MutateRequest struct{}
 
 func apiPutHandler(c *gin.Context) {
+	key := c.Query("key")
+	if key != readWriteAPIKey {
+		log.Printf("invalid key: %q", key)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
 	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
@@ -390,6 +410,13 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 }
 
 func apiGetHandler(c *gin.Context) {
+	key := c.Query("key")
+	if key != readAPIKey && key != readWriteAPIKey {
+		log.Printf("invalid key: %q", key)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
 	ctx := appengine.NewContext(c.Request)
 	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)

@@ -40,7 +40,7 @@ type Remote struct {
 	Name      string
 	URL       string
 	Index     bool
-	APIKey    string
+	APIKey    string `toml:"api_key"`
 	Write     bool
 	ReadGroup uint
 }
@@ -96,6 +96,7 @@ func getObjectGetter(config Config) nodeservice.ObjectGetter {
 		} else {
 			return nodeservice.Remote{
 				APIURL: remote.URL,
+				APIKey: remote.APIKey,
 			}
 		}
 	}

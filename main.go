@@ -34,8 +34,7 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/memcache"
+	"google.golang.org/appengine/v2"
 )
 
 var (
@@ -96,24 +95,38 @@ func main() {
 	}
 	log.Printf("domain name: %s", domainName)
 
+	if os.Getenv("ENABLE_MEMCACHE") != "" {
+		enableMemcache = true
+		log.Printf("memcache enabled")
+	} else {
+		log.Printf("memcache disabled")
+	}
+
 	ctx := context.Background()
+
+	var ds datastore.DataStore
+
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
 		log.Print(err)
-		blobStore =
-			objectstore.Store{
-				Inner: datastore.File{
-					DirName: "data/objects",
-				},
-			}
+		ds = datastore.File{
+			DirName: "data/objects",
+		}
 	} else {
-		blobStore =
-			objectstore.Store{
-				Inner: datastore.Cloud{
-					Client:     storageClient,
-					BucketName: objectsBucketName,
-				},
-			}
+		ds = datastore.Cloud{
+			Client:     storageClient,
+			BucketName: objectsBucketName,
+		}
+	}
+
+	if enableMemcache {
+		ds = datastore.Memcache{
+			Inner: ds,
+		}
+	}
+
+	blobStore = objectstore.Store{
+		Inner: ds,
 	}
 
 	{
@@ -153,11 +166,6 @@ func main() {
 		handlerWWW = router
 	}
 
-	if os.Getenv("ENABLE_MEMCACHE") != "" {
-		enableMemcache = true
-		log.Printf("memcache enabled")
-	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = fmt.Sprintf("%d", defaultPort)
@@ -171,9 +179,15 @@ func main() {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	log.Fatal(s.ListenAndServe())
 
-	appengine.Main()
+	if appengine.IsAppEngine() {
+		log.Printf("Running on App Engine")
+		http.HandleFunc("/", handlerRoot)
+		appengine.Main()
+	} else {
+		log.Printf("Running locally")
+		log.Fatal(s.ListenAndServe())
+	}
 }
 
 func handlerRoot(w http.ResponseWriter, r *http.Request) {
@@ -340,11 +354,11 @@ func apiPutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
+func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, error) {
 	log.Printf("fetching nodes for %s depth %d", root, depth)
 	var nodes [][]byte
 
-	blob, err := blobStore.Get(c, root)
+	blob, err := blobStore.Get(ctx, root)
 	if err != nil {
 		log.Printf("error getting blob %q: %s", root, err)
 		return nil, err
@@ -363,7 +377,7 @@ func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
 	} else {
 		for _, links := range node.Links {
 			for _, link := range links {
-				nn, err := fetchNodes(c, link.Hash, depth-1)
+				nn, err := fetchNodes(ctx, link.Hash, depth-1)
 				if err != nil {
 					log.Printf("error fetching nodes: %s", err)
 					continue
@@ -376,6 +390,7 @@ func fetchNodes(c *gin.Context, root utils.Hash, depth uint) ([][]byte, error) {
 }
 
 func apiGetHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)
 	log.Printf("req: %#v", req)
@@ -385,7 +400,7 @@ func apiGetHandler(c *gin.Context) {
 	var res api.GetResponse
 	res.Items = make(map[utils.Hash][]byte, len(req.Items))
 	for _, item := range req.Items {
-		blobs, err := fetchNodes(c, item.Root, depth)
+		blobs, err := fetchNodes(ctx, item.Root, depth)
 		if err != nil {
 			log.Printf("error getting blob %q: %s", item.Root, err)
 			continue
@@ -393,15 +408,6 @@ func apiGetHandler(c *gin.Context) {
 		for _, blob := range blobs {
 			hash := utils.ComputeHash(blob)
 			res.Items[hash] = blob
-			if enableMemcache {
-				err := memcache.Add(c, &memcache.Item{
-					Key:   string(hash),
-					Value: blob,
-				})
-				if err != nil {
-					log.Printf("error adding to memcache: %s", err)
-				}
-			}
 		}
 	}
 

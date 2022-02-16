@@ -32,3 +32,7 @@ func (s Store) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	}
 	return h, nil
 }
+
+func (s Store) Has(ctx context.Context, h utils.Hash) (bool, error) {
+	return s.Inner.Has(ctx, string(h))
+}

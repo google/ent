@@ -28,4 +28,5 @@ type ObjectStore interface {
 
 type ObjectGetter interface {
 	Get(ctx context.Context, h utils.Hash) ([]byte, error)
+	Has(ctx context.Context, h utils.Hash) (bool, error)
 }

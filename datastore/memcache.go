@@ -17,9 +17,10 @@ func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
 		log.Printf("error getting %s from memcache: %v", name, err)
 		b, err := s.Inner.Get(ctx, name)
 		if err != nil {
-			go s.TrySet(ctx, name, b)
+			return nil, err
 		}
-		return b, err
+		go s.TrySet(ctx, name, b)
+		return b, nil
 	}
 	log.Printf("got %s from memcache", name)
 	return item.Value, nil
@@ -28,9 +29,10 @@ func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
 func (s Memcache) Put(ctx context.Context, name string, value []byte) error {
 	err := s.Inner.Put(ctx, name, value)
 	if err != nil {
-		go s.TrySet(ctx, name, value)
+		return err
 	}
-	return err
+	go s.TrySet(ctx, name, value)
+	return nil
 }
 
 func (s Memcache) Has(ctx context.Context, name string) (bool, error) {

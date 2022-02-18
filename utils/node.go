@@ -30,6 +30,10 @@ func ParseNode(b []byte) (*Node, error) {
 	return &node, nil
 }
 
+func SerializeNode(node *Node) ([]byte, error) {
+	return json.Marshal(node)
+}
+
 // Parse a selector of the form "0[1]"
 func ParseSelector(s string) (*Selector, error) {
 	var fieldID, index uint

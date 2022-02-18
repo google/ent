@@ -59,3 +59,7 @@ var treeCmd = &cobra.Command{
 		tree(hash, 0)
 	},
 }
+
+func init() {
+	treeCmd.LocalFlags().String("schema", "", "digest of schema")
+}

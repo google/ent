@@ -109,6 +109,15 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 					}
 					fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(v)))
 				}
+			case reflect.Struct:
+				for _, link := range links {
+					v := reflect.New(typeField.Type.Elem())
+					err := GetStruct(o, link.Hash, v.Interface())
+					if err != nil {
+						return fmt.Errorf("failed to get struct field: %v", err)
+					}
+					fieldValue.Set(reflect.Append(fieldValue, v.Elem()))
+				}
 			default:
 				return fmt.Errorf("unsupported field type: %v", typeField.Type.Elem().Kind())
 			}
@@ -163,8 +172,9 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 		case reflect.Slice:
 			switch typeField.Type.Elem().Kind() {
 			case reflect.Uint32:
-				for _, iv := range fieldValue.Interface().([]uint32) {
-					h, err := PutUint32(o, iv)
+				for i := 0; i < fieldValue.Len(); i++ {
+					iv := fieldValue.Index(i).Uint()
+					h, err := PutUint32(o, uint32(iv))
 					if err != nil {
 						return "", fmt.Errorf("failed to put uint32 field: %v", err)
 					}
@@ -173,8 +183,20 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					})
 				}
 			case reflect.String:
-				for _, iv := range fieldValue.Interface().([]string) {
+				for i := 0; i < fieldValue.Len(); i++ {
+					iv := fieldValue.Index(i).String()
 					h, err := PutString(o, iv)
+					if err != nil {
+						return "", fmt.Errorf("failed to put string field: %v", err)
+					}
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+						Hash: h,
+					})
+				}
+			case reflect.Struct:
+				for i := 0; i < fieldValue.Len(); i++ {
+					iv := fieldValue.Index(i).Interface()
+					h, err := PutStruct(o, iv)
 					if err != nil {
 						return "", fmt.Errorf("failed to put string field: %v", err)
 					}

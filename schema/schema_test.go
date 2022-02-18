@@ -126,6 +126,7 @@ type T struct {
 	C []uint32 `ent:"2"`
 	D []string `ent:"3"`
 	E U        `ent:"4"`
+	F []U      `ent:"5"`
 }
 
 type U struct {
@@ -150,6 +151,16 @@ func TestRoundTrip(t *testing.T) {
 			E: U{
 				A: 456,
 				B: "world",
+			},
+			F: []U{
+				{
+					A: 78,
+					B: "mondo",
+				},
+				{
+					A: 90,
+					B: "monde",
+				},
 			},
 		},
 	}

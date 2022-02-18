@@ -41,19 +41,6 @@ type Field struct {
 	Name    string `ent:"1"`
 }
 
-/*
-func ParseField(objectGetter nodeservice.ObjectGetter, digest utils.Hash) (*Field, error) {
-	object, err := objectGetter.Get(context.Background(), digest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get field object: %v", err)
-	}
-	node, err := utils.ParseNode(object)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse field object: %v", err)
-	}
-}
-*/
-
 func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) error {
 	object, err := o.Get(context.Background(), digest)
 	if err != nil {

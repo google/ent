@@ -22,14 +22,19 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/google/ent/nodeservice"
+	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
 
-func tree(hash utils.Hash, indent int) {
-	config := readConfig()
-	objectGetter := getObjectGetter(config)
-	object, err := objectGetter.Get(context.Background(), hash)
+var (
+	schemaFlag string
+	s          schema.Schema
+)
+
+func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int) {
+	object, err := o.Get(context.Background(), hash)
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)
 	}
@@ -38,13 +43,42 @@ func tree(hash utils.Hash, indent int) {
 		fmt.Printf("%s %s\n", strings.Repeat("  ", indent), object)
 		return
 	}
+	k := kind(node.Kind)
+	kindName := k.Name
+	if kindName == "" {
+		kindName = node.Kind
+	}
+	fmt.Printf("%s %s\n", strings.Repeat("  ", indent), color.GreenString(kindName))
 	for fieldID, links := range node.Links {
+		f := field(k, uint32(fieldID))
+		fieldName := f.Name
+		if fieldName == "" {
+			fieldName = fmt.Sprintf("%d", f.FieldID)
+		}
 		for index, link := range links {
-			selector := fmt.Sprintf("%d[%d]", fieldID, index)
+			selector := fmt.Sprintf("%s[%d]", fieldName, index)
 			fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Hash)))
-			tree(link.Hash, indent+1)
+			tree(o, link.Hash, indent+1)
 		}
 	}
+}
+
+func kind(kindID string) schema.Kind {
+	for _, k := range s.Kinds {
+		if k.KindID == kindID {
+			return k
+		}
+	}
+	return schema.Kind{}
+}
+
+func field(k schema.Kind, fieldID uint32) schema.Field {
+	for _, f := range k.Fields {
+		if f.FieldID == fieldID {
+			return f
+		}
+	}
+	return schema.Field{}
 }
 
 var treeCmd = &cobra.Command{
@@ -56,10 +90,26 @@ var treeCmd = &cobra.Command{
 			log.Fatalf("could not parse hash: %v", err)
 			return
 		}
-		tree(hash, 0)
+
+		config := readConfig()
+		o := getObjectGetter(config)
+		if schemaFlag != "" {
+			schemaHash, err := utils.ParseHash(schemaFlag)
+			if err != nil {
+				log.Fatalf("could not parse schema hash: %v", err)
+				return
+			}
+			err = schema.GetStruct(o, schemaHash, &s)
+			if err != nil {
+				log.Fatalf("could not load schema: %v", err)
+				return
+			}
+			log.Printf("loaded schema: %+v", s)
+		}
+		tree(o, hash, 0)
 	},
 }
 
 func init() {
-	treeCmd.LocalFlags().String("schema", "", "digest of schema")
+	treeCmd.PersistentFlags().StringVar(&schemaFlag, "schema", "", "digest of schema")
 }

@@ -124,4 +124,5 @@ func init() {
 	rootCmd.AddCommand(putCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(treeCmd)
+	rootCmd.AddCommand(createSchemaCmd)
 }

@@ -166,8 +166,10 @@ func main() {
 		router.POST("/api/v1/links/get", apiGetHandler)
 		router.POST("/api/v1/links/update", apiPutHandler)
 
-		router.GET("/web/:root", browseBlobHandler)
-		router.GET("/web/:root/*path", browseBlobHandler)
+		router.GET("/web/:root", renderHandler)
+
+		router.GET("/browse/:root", browseBlobHandler)
+		router.GET("/browse/:root/*path", browseBlobHandler)
 
 		router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
@@ -509,48 +511,34 @@ func browseBlobHandler(c *gin.Context) {
 }
 
 func renderHandler(c *gin.Context) {
-	hostSegments := hostSegments(c.Request.Host)
-	pathString := c.Param("path")
-	log.Printf("path: %v", pathString)
-	segments := parsePath(pathString)
-	log.Printf("segments: %#v", segments)
-	if pathString != "/" && strings.HasSuffix(pathString, "/") {
-		c.Redirect(http.StatusMovedPermanently, strings.TrimSuffix(pathString, "/"))
+	root, err := utils.ParseHash(c.Param("root"))
+	if err != nil {
+		log.Print(err)
+		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-
-	switch hostSegments[1] {
-	case wwwSegment:
-		/*
-			baseDomain := hostSegments[0]
-			log.Printf("base domain: %s", baseDomain)
-			if baseDomain == "empty" {
-					newNode := utils.NewProtoNode()
-					err := blobStore.Add(c, newNode)
-					if err != nil {
-						log.Print(err)
-						c.AbortWithStatus(http.StatusNotFound)
-						return
-					}
-					target := newNode.Cid()
-					log.Printf("target: %s", target.String())
-					redirectToCid(c, target, "")
-				return
-			}
-
-			root, err = cid.Decode(baseDomain)
-			if err != nil {
-				log.Print(err)
-				c.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-			log.Printf("root: %v", root)
-		*/
-	default:
-		log.Printf("invalid segment")
+	path, err := utils.ParsePath(c.Param("path"))
+	if err != nil {
+		log.Printf("invalid path: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
+	target, err := traverse(c, root, path)
+	if err != nil {
+		log.Print(err)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	log.Printf("root: %v", root)
+	nodeRaw, err := blobStore.Get(c, target)
+	if err != nil {
+		log.Print(err)
+		c.Abort()
+		return
+	}
 
-	// serveWWW(c, root, segments)
+	c.Header("ent-hash", string(target))
+	contentType := http.DetectContentType(nodeRaw)
+	c.Header("Content-Type", contentType)
+	c.Data(http.StatusOK, "", nodeRaw)
 }

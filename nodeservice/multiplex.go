@@ -18,18 +18,20 @@ package nodeservice
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/google/ent/utils"
 )
 
 type Multiplex struct {
-	Inner []ObjectStore
+	Inner []ObjectGetter
 }
 
 func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
-	for _, i := range s.Inner {
-		b, err := i.Get(ctx, h)
+	for i, ss := range s.Inner {
+		b, err := ss.Get(ctx, h)
 		if err != nil {
+			log.Printf("error fetching from remote %d: %v", i, err)
 			continue
 		}
 		return b, nil
@@ -37,6 +39,18 @@ func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	return nil, fmt.Errorf("not found")
 }
 
+func (s Multiplex) Has(ctx context.Context, h utils.Hash) (bool, error) {
+	for _, i := range s.Inner {
+		b, err := i.Has(ctx, h)
+		if err != nil {
+			continue
+		}
+		return b, nil
+	}
+	return false, nil
+}
+
 func (s Multiplex) Put(ctx context.Context, b []byte) (utils.Hash, error) {
-	return s.Inner[0].Put(ctx, b)
+	// return s.Inner[0].Put(ctx, b)
+	return "", fmt.Errorf("not implemented")
 }

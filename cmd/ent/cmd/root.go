@@ -88,19 +88,22 @@ func getObjectStore(config Config) nodeservice.ObjectStore {
 }
 
 func getObjectGetter(config Config) nodeservice.ObjectGetter {
+	inner := make([]nodeservice.ObjectGetter, 0)
 	for _, remote := range config.Remotes {
 		if remote.Index {
-			return nodeservice.IndexClient{
+			inner = append(inner, nodeservice.IndexClient{
 				BaseURL: remote.URL,
-			}
+			})
 		} else {
-			return nodeservice.Remote{
+			inner = append(inner, nodeservice.Remote{
 				APIURL: remote.URL,
 				APIKey: remote.APIKey,
-			}
+			})
 		}
 	}
-	return nil
+	return nodeservice.Multiplex{
+		Inner: inner,
+	}
 }
 
 var rootCmd = &cobra.Command{

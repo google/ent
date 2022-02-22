@@ -92,7 +92,7 @@ var treeCmd = &cobra.Command{
 		}
 
 		config := readConfig()
-		o := getObjectGetter(config)
+		o := getMultiplexObjectGetter(config)
 		if schemaFlag != "" {
 			schemaHash, err := utils.ParseHash(schemaFlag)
 			if err != nil {

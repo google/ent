@@ -20,10 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/google/ent/api"
+	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
 )
 
@@ -105,7 +105,7 @@ func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	json.NewEncoder(&reqBytes).Encode(req)
 	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET+"?key="+s.APIKey, "application/json", &reqBytes)
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf(ctx, "error sending request: %v", err)
 	}
 	if r.StatusCode == http.StatusOK {
 		return true, nil

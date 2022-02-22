@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -31,6 +30,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/ent/api"
 	"github.com/google/ent/datastore"
+	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
@@ -92,36 +92,39 @@ func hostSegments(host string) []string {
 }
 
 func main() {
+	ctx := context.Background()
+	if appengine.IsAppEngine() {
+		ctx = appengine.BackgroundContext()
+	}
+
 	domainNameEnv := os.Getenv("DOMAIN_NAME")
 	if domainNameEnv != "" {
 		domainName = domainNameEnv
 	}
-	log.Printf("domain name: %s", domainName)
+	log.Infof(ctx, "domain name: %s", domainName)
 
 	if os.Getenv("ENABLE_MEMCACHE") != "" {
 		enableMemcache = true
-		log.Printf("memcache enabled")
+		log.Infof(ctx, "memcache enabled")
 	} else {
-		log.Printf("memcache disabled")
+		log.Infof(ctx, "memcache disabled")
 	}
 
 	readAPIKey = os.Getenv("READ_API_KEY")
 	if readAPIKey != "" {
-		log.Printf("read API key: %q", readAPIKey)
+		log.Infof(ctx, "read API key: %q", readAPIKey)
 	}
 
 	readWriteAPIKey = os.Getenv("READ_WRITE_API_KEY")
 	if readWriteAPIKey != "" {
-		log.Printf("read write API key: %q", readWriteAPIKey)
+		log.Infof(ctx, "read write API key: %q", readWriteAPIKey)
 	}
-
-	ctx := context.Background()
 
 	var ds datastore.DataStore
 
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not create storage client: %v", err)
 		ds = datastore.File{
 			DirName: "data/objects",
 		}
@@ -148,6 +151,13 @@ func main() {
 		config := cors.DefaultConfig()
 		config.AllowAllOrigins = true
 		router.Use(cors.New(config))
+		/*
+			router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+				ctx := appengine.NewContext(param.Request)
+				log.Infof(ctx, "%s", param.ErrorMessage)
+				return "\n"
+			}))
+		*/
 
 		router.RedirectTrailingSlash = false
 		router.RedirectFixedPath = false
@@ -184,7 +194,7 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = fmt.Sprintf("%d", defaultPort)
-		log.Printf("Defaulting to port %s", port)
+		log.Infof(ctx, "Defaulting to port %s", port)
 	}
 
 	s := &http.Server{
@@ -196,18 +206,18 @@ func main() {
 	}
 
 	if appengine.IsAppEngine() {
-		log.Printf("Running on App Engine")
+		log.Infof(ctx, "Running on App Engine")
 		http.HandleFunc("/", handlerRoot)
 		appengine.Main()
 	} else {
-		log.Printf("Running locally")
-		log.Fatal(s.ListenAndServe())
+		log.Infof(ctx, "Running locally")
+		log.Criticalf(ctx, "%v", s.ListenAndServe())
 	}
 }
 
 func handlerRoot(w http.ResponseWriter, r *http.Request) {
-	hostSegments := hostSegments(r.Host)
-	log.Printf("host segments: %#v", hostSegments)
+	// hostSegments := hostSegments(r.Host)
+	// log.Printf("host segments: %#v", hostSegments)
 	// if len(hostSegments) == 0 {
 	handlerBrowse.ServeHTTP(w, r)
 	// } else {
@@ -345,9 +355,10 @@ type RemoveRequest struct {
 type MutateRequest struct{}
 
 func apiPutHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 	key := c.Query("key")
 	if key != readWriteAPIKey {
-		log.Printf("invalid key: %q", key)
+		log.Errorf(ctx, "invalid key: %q", key)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -355,7 +366,7 @@ func apiPutHandler(c *gin.Context) {
 	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
-		log.Printf("could not parse request: %v", err)
+		log.Errorf(ctx, "could not parse request: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -363,26 +374,26 @@ func apiPutHandler(c *gin.Context) {
 	var res api.PutResponse
 	res.Hash = make([]utils.Hash, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
-		h, err := blobStore.Put(c, blob)
+		h, err := blobStore.Put(ctx, blob)
 		if err != nil {
-			log.Printf("error adding blob: %s", err)
+			log.Errorf(ctx, "error adding blob: %s", err)
 			continue
 		}
-		log.Printf("added blob: %s", h)
+		log.Infof(ctx, "added blob: %s", h)
 		res.Hash = append(res.Hash, h)
 	}
 
-	log.Printf("res: %#v", res)
+	log.Debugf(ctx, "res: %#v", res)
 	c.JSON(http.StatusOK, res)
 }
 
 func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, error) {
-	log.Printf("fetching nodes for %s depth %d", root, depth)
+	log.Debugf(ctx, "fetching nodes for %s depth %d", root, depth)
 	var nodes [][]byte
 
 	blob, err := blobStore.Get(ctx, root)
 	if err != nil {
-		log.Printf("error getting blob %q: %s", root, err)
+		log.Errorf(ctx, "error getting blob %q: %s", root, err)
 		return nil, err
 	}
 
@@ -390,7 +401,7 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 
 	node, err := utils.ParseNode(blob)
 	if err != nil {
-		log.Printf("error parsing blob %q: %s", root, err)
+		log.Errorf(ctx, "error parsing blob %q: %s", root, err)
 		return nodes, nil
 	}
 
@@ -401,7 +412,7 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 			for _, link := range links {
 				nn, err := fetchNodes(ctx, link.Hash, depth-1)
 				if err != nil {
-					log.Printf("error fetching nodes: %s", err)
+					log.Errorf(ctx, "error fetching nodes: %s", err)
 					continue
 				}
 				nodes = append(nodes, nn...)
@@ -412,17 +423,17 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 }
 
 func apiGetHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 	key := c.Query("key")
 	if key != readAPIKey && key != readWriteAPIKey {
-		log.Printf("invalid key: %q", key)
+		log.Errorf(ctx, "invalid key: %q", key)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
-	ctx := appengine.NewContext(c.Request)
 	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)
-	log.Printf("req: %#v", req)
+	log.Debugf(ctx, "req: %#v", req)
 
 	var depth uint = 10
 
@@ -431,7 +442,7 @@ func apiGetHandler(c *gin.Context) {
 	for _, item := range req.Items {
 		blobs, err := fetchNodes(ctx, item.Root, depth)
 		if err != nil {
-			log.Printf("error getting blob %q: %s", item.Root, err)
+			log.Errorf(ctx, "error getting blob %q: %s", item.Root, err)
 			continue
 		}
 		for _, blob := range blobs {
@@ -443,11 +454,11 @@ func apiGetHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func traverse(c context.Context, root utils.Hash, segments []utils.Selector) (utils.Hash, error) {
+func traverse(ctx context.Context, root utils.Hash, segments []utils.Selector) (utils.Hash, error) {
 	if len(segments) == 0 {
 		return root, nil
 	} else {
-		nodeRaw, err := blobStore.Get(c, root)
+		nodeRaw, err := blobStore.Get(ctx, root)
 		if err != nil {
 			return "", fmt.Errorf("could not get blob %s: %w", root, err)
 		}
@@ -460,85 +471,87 @@ func traverse(c context.Context, root utils.Hash, segments []utils.Selector) (ut
 		if err != nil {
 			return "", fmt.Errorf("could not traverse %s/%v: %w", root, selector, err)
 		}
-		log.Printf("next: %v", next)
-		return traverse(c, next.Hash, segments[1:])
+		log.Debugf(ctx, "next: %v", next)
+		return traverse(ctx, next.Hash, segments[1:])
 	}
 }
 
 func browseBlobHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 	pathString := c.Param("path")
-	log.Printf("path: %q", pathString)
+	log.Infof(ctx, "path: %q", pathString)
 
 	if strings.HasSuffix(c.Request.URL.Path, "/") {
 		to := strings.TrimSuffix(c.Request.URL.Path, "/")
-		log.Printf("redirecting to: %q", to)
+		log.Infof(ctx, "redirecting to: %q", to)
 		c.Redirect(http.StatusMovedPermanently, to)
 		return
 	}
 
 	root, err := utils.ParseHash(c.Param("root"))
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not parse root: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	path, err := utils.ParsePath(c.Param("path"))
 	if err != nil {
-		log.Printf("invalid path: %v", err)
+		log.Errorf(ctx, "invalid path: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	target, err := traverse(c, root, path)
+	target, err := traverse(ctx, root, path)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not traverse: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	log.Printf("root: %v", root)
-	nodeRaw, err := blobStore.Get(c, target)
+	log.Infof(ctx, "root: %v", root)
+	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not get blob %s: %s", target, err)
 		c.Abort()
 		return
 	}
 	node := &utils.Node{}
 	err = json.Unmarshal(nodeRaw, node)
 	if err != nil {
-		log.Printf("invalid node: %v", err)
+		log.Errorf(ctx, "could not parse blob %s: %s", target, err)
 		node = nil
 	}
 	serveUI1(c, root, path, nodeRaw, node)
 }
 
 func renderHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
+
 	root, err := utils.ParseHash(c.Param("root"))
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not parse root: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	path, err := utils.ParsePath(c.Param("path"))
 	if err != nil {
-		log.Printf("invalid path: %v", err)
+		log.Errorf(ctx, "invalid path: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	target, err := traverse(c, root, path)
+	target, err := traverse(ctx, root, path)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not traverse: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	log.Printf("root: %v", root)
-	nodeRaw, err := blobStore.Get(c, target)
+	log.Infof(ctx, "root: %v", root)
+	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(ctx, "could not get blob %s: %s", target, err)
 		c.Abort()
 		return
 	}
 
 	c.Header("ent-hash", string(target))
 	contentType := http.DetectContentType(nodeRaw)
-	c.Header("Content-Type", contentType)
-	c.Data(http.StatusOK, "", nodeRaw)
+	c.Data(http.StatusOK, contentType, nodeRaw)
 }

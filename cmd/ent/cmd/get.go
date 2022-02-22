@@ -26,7 +26,7 @@ import (
 
 func get(hash utils.Hash) {
 	config := readConfig()
-	objectGetter := getObjectGetter(config)
+	objectGetter := getMultiplexObjectGetter(config)
 	object, err := objectGetter.Get(context.Background(), hash)
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)

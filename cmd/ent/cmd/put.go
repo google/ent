@@ -93,7 +93,7 @@ func exists(hash utils.Hash) bool {
 	if err == nodeservice.ErrNotFound {
 		return false
 	} else if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not check existence of %q: %v", hash, err)
 	}
 	return true
 }

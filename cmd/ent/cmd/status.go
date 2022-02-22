@@ -21,7 +21,6 @@ import (
 	"log"
 
 	"github.com/fatih/color"
-	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
@@ -42,16 +41,7 @@ var statusCmd = &cobra.Command{
 func status(hash utils.Hash) {
 	config := readConfig()
 	for _, remote := range config.Remotes {
-		var objectGetter nodeservice.ObjectGetter
-		if remote.Index {
-			objectGetter = nodeservice.IndexClient{
-				BaseURL: remote.URL,
-			}
-		} else {
-			objectGetter = nodeservice.Remote{
-				APIURL: remote.URL,
-			}
-		}
+		objectGetter := getObjectGetter(remote)
 		marker := color.GreenString("✓")
 		_, err := objectGetter.Get(context.Background(), hash)
 		if err != nil {

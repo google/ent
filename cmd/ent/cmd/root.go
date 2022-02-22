@@ -81,28 +81,33 @@ func getObjectStore(config Config) nodeservice.ObjectStore {
 		if remote.Write {
 			return nodeservice.Remote{
 				APIURL: remote.URL,
+				APIKey: remote.APIKey,
 			}
 		}
 	}
 	return nil
 }
 
-func getObjectGetter(config Config) nodeservice.ObjectGetter {
+func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
 	inner := make([]nodeservice.ObjectGetter, 0)
 	for _, remote := range config.Remotes {
-		if remote.Index {
-			inner = append(inner, nodeservice.IndexClient{
-				BaseURL: remote.URL,
-			})
-		} else {
-			inner = append(inner, nodeservice.Remote{
-				APIURL: remote.URL,
-				APIKey: remote.APIKey,
-			})
-		}
+		inner = append(inner, getObjectGetter(remote))
 	}
 	return nodeservice.Multiplex{
 		Inner: inner,
+	}
+}
+
+func getObjectGetter(remote Remote) nodeservice.ObjectGetter {
+	if remote.Index {
+		return nodeservice.IndexClient{
+			BaseURL: remote.URL,
+		}
+	} else {
+		return nodeservice.Remote{
+			APIURL: remote.URL,
+			APIKey: remote.APIKey,
+		}
 	}
 }
 

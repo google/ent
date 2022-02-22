@@ -18,8 +18,8 @@ package nodeservice
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
 )
 
@@ -31,9 +31,10 @@ func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	for i, ss := range s.Inner {
 		b, err := ss.Get(ctx, h)
 		if err != nil {
-			log.Printf("error fetching from remote %d: %v", i, err)
+			log.Errorf(ctx, "error fetching from remote %d: %v", i, err)
 			continue
 		}
+		log.Infof(ctx, "fetched from remote %d", i)
 		return b, nil
 	}
 	return nil, fmt.Errorf("not found")

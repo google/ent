@@ -16,6 +16,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -76,16 +77,24 @@ func defaultConfig() Config {
 	}
 }
 
-func getObjectStore(config Config) nodeservice.ObjectStore {
+func getRemote(config Config, remoteName string) (Remote, error) {
 	for _, remote := range config.Remotes {
-		if remote.Write {
-			return nodeservice.Remote{
-				APIURL: remote.URL,
-				APIKey: remote.APIKey,
-			}
+		if remote.Name == remoteName {
+			return remote, nil
 		}
 	}
-	return nil
+	return Remote{}, fmt.Errorf("remote %q not found", remoteName)
+}
+
+func getObjectStore(remote Remote) nodeservice.ObjectStore {
+	if remote.Write {
+		return nodeservice.Remote{
+			APIURL: remote.URL,
+			APIKey: remote.APIKey,
+		}
+	} else {
+		return nil
+	}
 }
 
 func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
@@ -121,13 +130,7 @@ func Execute() {
 	}
 }
 
-var (
-	remoteName string
-)
-
 func init() {
-	rootCmd.PersistentFlags().StringVar(&remoteName, "remote", "", "")
-
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(putCmd)
 	rootCmd.AddCommand(statusCmd)

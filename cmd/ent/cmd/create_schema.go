@@ -27,7 +27,8 @@ var createSchemaCmd = &cobra.Command{
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		config := readConfig()
-		nodeService := getObjectStore(config)
+		remote := config.Remotes[0]
+		nodeService := getObjectStore(remote)
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{

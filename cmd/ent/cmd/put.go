@@ -28,6 +28,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var remoteFlag string
+
 var putCmd = &cobra.Command{
 	Use:  "put [filename]",
 	Args: cobra.MaximumNArgs(1),
@@ -68,27 +70,34 @@ func putFile(filename string) error {
 }
 
 func putData(data []byte) error {
+	config := readConfig()
+	remote := config.Remotes[0]
+	if remoteFlag != "" {
+		var err error
+		remote, err = getRemote(config, remoteFlag)
+		if err != nil {
+			return fmt.Errorf("could not use remote: %v", err)
+		}
+	}
+	nodeService := getObjectStore(remote)
+
 	localHash := utils.ComputeHash(data)
-	if exists(localHash) {
+	if exists(nodeService, localHash) {
 		marker := color.GreenString("✓")
-		fmt.Printf("%s %s\n", color.YellowString(string(localHash)), marker)
+		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localHash)), marker, remote.Name)
 		return nil
 	} else {
-		config := readConfig()
-		nodeService := getObjectStore(config)
 		_, err := nodeService.Put(context.Background(), data)
 		if err != nil {
 			return fmt.Errorf("could not add object: %v", err)
 		}
 		marker := color.BlueString("↑")
-		fmt.Printf("%s %s\n", color.YellowString(string(localHash)), marker)
+		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localHash)), marker, remote.Name)
 		return nil
 	}
 }
 
-func exists(hash utils.Hash) bool {
-	config := readConfig()
-	nodeService := getObjectStore(config)
+func exists(nodeService nodeservice.ObjectGetter, hash utils.Hash) bool {
 	_, err := nodeService.Get(context.Background(), hash)
 	if err == nodeservice.ErrNotFound {
 		return false
@@ -96,4 +105,8 @@ func exists(hash utils.Hash) bool {
 		log.Fatalf("could not check existence of %q: %v", hash, err)
 	}
 	return true
+}
+
+func init() {
+	putCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
 }

@@ -176,7 +176,7 @@ func main() {
 		router.POST("/api/v1/links/get", apiGetHandler)
 		router.POST("/api/v1/links/update", apiPutHandler)
 
-		router.GET("/web/:root", renderHandler)
+		router.GET("/:root", renderHandler)
 
 		router.GET("/browse/:root", browseBlobHandler)
 		router.GET("/browse/:root/*path", browseBlobHandler)

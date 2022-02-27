@@ -7,14 +7,21 @@ import (
 )
 
 type Node struct {
-	Kind  string
-	Links map[uint][]Link
+	Links map[uint][]Target
+}
+
+type Target struct {
+	Type uint32
+	Hash Hash
 }
 
 type Link struct {
-	Type uint
-	Hash Hash
+	// If base is empty, then it is relative to the same root.
+	Base Hash
+	Path Path
 }
+
+type Path []Selector
 
 type Selector struct {
 	FieldID uint
@@ -51,7 +58,7 @@ func PrintSelector(s Selector) string {
 	return fmt.Sprintf("%d[%d]", s.FieldID, s.Index)
 }
 
-func ParsePath(s string) ([]Selector, error) {
+func ParsePath(s string) (Path, error) {
 	selectors := []Selector{}
 	for _, s := range strings.Split(s, "/") {
 		if s == "" {
@@ -66,10 +73,10 @@ func ParsePath(s string) ([]Selector, error) {
 	return selectors, nil
 }
 
-func PrintPath(selectors []Selector) string {
-	path := ""
-	for _, s := range selectors {
-		path += "/" + PrintSelector(s)
+func PrintPath(path Path) string {
+	out := ""
+	for _, s := range path {
+		out += "/" + PrintSelector(s)
 	}
-	return path
+	return out
 }

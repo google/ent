@@ -14,7 +14,7 @@ func Debugf(ctx context.Context, format string, args ...interface{}) {
 	if isAppEngine {
 		alog.Debugf(ctx, format, args...)
 	} else {
-		log.Printf("[DEBUG]"+format, args...)
+		log.Printf("[DEBUG] "+format, args...)
 	}
 }
 
@@ -22,7 +22,7 @@ func Infof(ctx context.Context, format string, args ...interface{}) {
 	if isAppEngine {
 		alog.Infof(ctx, format, args...)
 	} else {
-		log.Printf("[INFO]"+format, args...)
+		log.Printf("[INFO] "+format, args...)
 	}
 }
 
@@ -30,7 +30,7 @@ func Warningf(ctx context.Context, format string, args ...interface{}) {
 	if isAppEngine {
 		alog.Warningf(ctx, format, args...)
 	} else {
-		log.Printf("[WARNING]"+format, args...)
+		log.Printf("[WARNING] "+format, args...)
 	}
 }
 
@@ -38,7 +38,7 @@ func Errorf(ctx context.Context, format string, args ...interface{}) {
 	if isAppEngine {
 		alog.Errorf(ctx, format, args...)
 	} else {
-		log.Printf("[ERROR]"+format, args...)
+		log.Printf("[ERROR] "+format, args...)
 	}
 }
 
@@ -46,6 +46,6 @@ func Criticalf(ctx context.Context, format string, args ...interface{}) {
 	if isAppEngine {
 		alog.Criticalf(ctx, format, args...)
 	} else {
-		log.Printf("[CRITICAL]"+format, args...)
+		log.Printf("[CRITICAL] "+format, args...)
 	}
 }

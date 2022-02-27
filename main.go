@@ -254,10 +254,8 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 			URL:      path.Join("/", "web", string(root), utils.PrintPath(segments[0:i+1])),
 		})
 	}
-	kind := "unknown"
 	links := []UILink{}
 	if node != nil {
-		kind = node.Kind
 		for fieldID, ll := range node.Links {
 			for index, l := range ll {
 				selector := utils.Selector{
@@ -280,7 +278,6 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 		parentURL = path.Join("/", "web", string(root), utils.PrintPath(segments[0:len(segments)-1]))
 	}
 	uiNode := UINode{
-		Kind:         kind,
 		Value:        string(rawData),
 		Hash:         string(root),
 		PathSegments: templateSegments,

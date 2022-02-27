@@ -136,4 +136,5 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(treeCmd)
 	rootCmd.AddCommand(createSchemaCmd)
+	rootCmd.AddCommand(printSchemaCmd)
 }

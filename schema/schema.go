@@ -22,26 +22,48 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 )
 
 type Schema struct {
+	// #0 is the root node kind.
 	Kinds []Kind `ent:"0"`
 }
 
 type Kind struct {
-	KindID string  `ent:"0"`
 	Name   string  `ent:"1"`
 	Fields []Field `ent:"2"`
 }
 
 type Field struct {
-	FieldID uint32 `ent:"0"`
-	Name    string `ent:"1"`
+	FieldID   uint32 `ent:"0"`
+	Name      string `ent:"1"`
+	KindIndex uint32 `ent:"2"`
+	Raw       uint32 `ent:"3"`
+}
+
+func ResolveLink(o nodeservice.ObjectGetter, base utils.Hash, path []utils.Selector) (utils.Hash, error) {
+	if len(path) == 0 {
+		return base, nil
+	} else {
+		object, err := o.Get(context.Background(), base)
+		if err != nil {
+			return "", fmt.Errorf("failed to get object: %v", err)
+		}
+		node, err := utils.ParseNode(object)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse object: %v", err)
+		}
+		selector := path[0]
+		newBase := node.Links[selector.FieldID][selector.Index]
+		return ResolveLink(o, newBase.Hash, path[1:])
+	}
 }
 
 func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) error {
+	log.Debugf(context.Background(), "getting struct %s", digest)
 	object, err := o.Get(context.Background(), digest)
 	if err != nil {
 		return fmt.Errorf("failed to get struct object: %v", err)
@@ -50,6 +72,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 	if err != nil {
 		return fmt.Errorf("failed to parse struct object: %v", err)
 	}
+	log.Debugf(context.Background(), "parsed node: %+v", node)
 	rv := reflect.ValueOf(v).Elem()
 	for i := 0; i < rv.NumField(); i++ {
 		typeField := rv.Type().Field(i)
@@ -62,18 +85,27 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 		fieldValue := rv.Field(i)
 		switch typeField.Type.Kind() {
 		case reflect.Uint32:
+			if len(links) != 1 {
+				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
+			}
 			f, err := GetUint32(o, links[0].Hash)
 			if err != nil {
 				return fmt.Errorf("failed to get uint32 field: %v", err)
 			}
 			fieldValue.SetUint(uint64(f))
 		case reflect.String:
+			if len(links) != 1 {
+				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
+			}
 			f, err := GetString(o, links[0].Hash)
 			if err != nil {
 				return fmt.Errorf("failed to get uint32 field: %v", err)
 			}
 			fieldValue.SetString(f)
 		case reflect.Struct:
+			if len(links) != 1 {
+				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
+			}
 			err = GetStruct(o, links[0].Hash, fieldValue.Addr().Interface())
 			if err != nil {
 				return fmt.Errorf("failed to get struct field: %v", err)
@@ -117,7 +149,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 
 func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 	node := utils.Node{
-		Links: make(map[uint][]utils.Link),
+		Links: make(map[uint][]utils.Target),
 	}
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr {
@@ -137,7 +169,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put uint32 field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 				Hash: h,
 			})
 		case reflect.String:
@@ -145,7 +177,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put string field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 				Hash: h,
 			})
 		case reflect.Struct:
@@ -153,7 +185,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put struct field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 				Hash: h,
 			})
 		case reflect.Slice:
@@ -165,7 +197,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put uint32 field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 						Hash: h,
 					})
 				}
@@ -176,7 +208,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put string field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 						Hash: h,
 					})
 				}
@@ -187,7 +219,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put string field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
 						Hash: h,
 					})
 				}

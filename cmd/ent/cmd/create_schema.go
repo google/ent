@@ -32,12 +32,47 @@ var createSchemaCmd = &cobra.Command{
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{
-					KindID: "d76d88c5-2094-48b4-b4ed-dbf8df15fa59",
-					Name:   "User",
+					Name: "Root",
+					Fields: []schema.Field{
+						{
+							FieldID:   0,
+							Name:      "book",
+							KindIndex: 1,
+						},
+						{
+							FieldID:   1,
+							Name:      "film",
+							KindIndex: 2,
+						},
+					},
+				},
+				{
+					Name: "Book",
 					Fields: []schema.Field{
 						{
 							FieldID: 0,
-							Name:    "whatever",
+							Name:    "title",
+							Raw:     1,
+						},
+						{
+							FieldID: 1,
+							Name:    "author",
+							Raw:     1,
+						},
+					},
+				},
+				{
+					Name: "Film",
+					Fields: []schema.Field{
+						{
+							FieldID: 0,
+							Name:    "title",
+							Raw:     1,
+						},
+						{
+							FieldID: 1,
+							Name:    "director",
+							Raw:     1,
 						},
 					},
 				},

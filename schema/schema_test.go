@@ -83,16 +83,18 @@ func TestGetStruct(t *testing.T) {
 		t.Fatalf("failed to put string: %v", err)
 	}
 	node := &utils.Node{
-		Links: map[uint][]utils.Link{
+		Links: map[uint][]utils.Target{
 			0: {
-				{
-					Hash: uintFieldDigest,
-				},
+				{Hash: uintFieldDigest},
 			},
 			1: {
-				{
-					Hash: stringFieldDigest,
-				},
+				{Hash: stringFieldDigest},
+			},
+			2: {
+				{Hash: uintFieldDigest},
+			},
+			3: {
+				{Hash: uintFieldDigest},
 			},
 		},
 	}

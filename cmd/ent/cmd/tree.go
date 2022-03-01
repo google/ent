@@ -33,7 +33,7 @@ var (
 	s          schema.Schema
 )
 
-func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindIndex uint32) {
+func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindID uint32) {
 	object, err := o.Get(context.Background(), hash)
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)
@@ -43,11 +43,11 @@ func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindIndex uin
 		fmt.Printf("%s %s\n", strings.Repeat("  ", indent), object)
 		return
 	}
-	kind := s.Kinds[kindIndex]
-	kindName := kind.Name
+	k := kind(s, kindID)
+	kindName := k.Name
 	fmt.Printf("%s %s\n", strings.Repeat("  ", indent), color.GreenString(kindName))
 	for fieldID, links := range node.Links {
-		f := field(kind, uint32(fieldID))
+		f := field(k, uint32(fieldID))
 		fieldName := f.Name
 		if fieldName == "" {
 			fieldName = fmt.Sprintf("%d", f.FieldID)
@@ -55,10 +55,19 @@ func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindIndex uin
 		for index, link := range links {
 			selector := fmt.Sprintf("%s[%d]", fieldName, index)
 			fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Hash)))
-			fieldKindIndex := f.KindIndex
+			fieldKindIndex := f.KindID
 			tree(o, link.Hash, indent+1, fieldKindIndex)
 		}
 	}
+}
+
+func kind(s schema.Schema, kindID uint32) schema.Kind {
+	for _, k := range s.Kinds {
+		if k.KindID == kindID {
+			return k
+		}
+	}
+	return schema.Kind{}
 }
 
 func field(k schema.Kind, fieldID uint32) schema.Field {

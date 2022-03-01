@@ -32,22 +32,24 @@ var createSchemaCmd = &cobra.Command{
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{
-					Name: "Root",
+					KindID: 0,
+					Name:   "Root",
 					Fields: []schema.Field{
 						{
-							FieldID:   0,
-							Name:      "book",
-							KindIndex: 1,
+							FieldID: 0,
+							Name:    "book",
+							KindID:  1,
 						},
 						{
-							FieldID:   1,
-							Name:      "film",
-							KindIndex: 2,
+							FieldID: 1,
+							Name:    "film",
+							KindID:  2,
 						},
 					},
 				},
 				{
-					Name: "Book",
+					KindID: 1,
+					Name:   "Book",
 					Fields: []schema.Field{
 						{
 							FieldID: 0,
@@ -62,7 +64,8 @@ var createSchemaCmd = &cobra.Command{
 					},
 				},
 				{
-					Name: "Film",
+					KindID: 2,
+					Name:   "Film",
 					Fields: []schema.Field{
 						{
 							FieldID: 0,
@@ -72,6 +75,74 @@ var createSchemaCmd = &cobra.Command{
 						{
 							FieldID: 1,
 							Name:    "director",
+							Raw:     1,
+						},
+					},
+				},
+				{
+					KindID: 3,
+					Name:   "Docker",
+					Fields: []schema.Field{
+						{
+							FieldID: 0,
+							Name:    "command_build",
+							KindID:  4,
+						},
+						{
+							FieldID: 1,
+							Name:    "command_run",
+							KindID:  5,
+						},
+					},
+				},
+				{
+					KindID: 4,
+					Name:   "DockerBuild",
+					Fields: []schema.Field{
+						{
+							FieldID: 0,
+							Name:    "add-host",
+							Raw:     1,
+						},
+						{
+							FieldID: 1,
+							Name:    "build-arg",
+							Raw:     1,
+						},
+						{
+							FieldID: 2,
+							Name:    "cache-from",
+							Raw:     1,
+						},
+						{
+							FieldID: 3,
+							Name:    "compress",
+							Raw:     1,
+						},
+					},
+				},
+				{
+					KindID: 5,
+					Name:   "DockerRun",
+					Fields: []schema.Field{
+						{
+							FieldID: 0,
+							Name:    "attach",
+							Raw:     1,
+						},
+						{
+							FieldID: 1,
+							Name:    "cap-add",
+							Raw:     1,
+						},
+						{
+							FieldID: 2,
+							Name:    "cap-drop",
+							Raw:     1,
+						},
+						{
+							FieldID: 3,
+							Name:    "detach",
 							Raw:     1,
 						},
 					},

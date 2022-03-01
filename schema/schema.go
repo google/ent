@@ -33,15 +33,16 @@ type Schema struct {
 }
 
 type Kind struct {
+	KindID uint32  `ent:"0"`
 	Name   string  `ent:"1"`
 	Fields []Field `ent:"2"`
 }
 
 type Field struct {
-	FieldID   uint32 `ent:"0"`
-	Name      string `ent:"1"`
-	KindIndex uint32 `ent:"2"`
-	Raw       uint32 `ent:"3"`
+	FieldID uint32 `ent:"0"`
+	Name    string `ent:"1"`
+	KindID  uint32 `ent:"2"`
+	Raw     uint32 `ent:"3"`
 }
 
 func ResolveLink(o nodeservice.ObjectGetter, base utils.Hash, path []utils.Selector) (utils.Hash, error) {

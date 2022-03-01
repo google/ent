@@ -44,6 +44,7 @@ var (
 	handlerWWW    http.Handler
 
 	enableMemcache = false
+	enableBigquery = false
 
 	readAPIKey      = ""
 	readWriteAPIKey = ""
@@ -120,6 +121,13 @@ func main() {
 		log.Infof(ctx, "read write API key: %q", readWriteAPIKey)
 	}
 
+	if os.Getenv("ENABLE_BIGQUERY") != "" {
+		enableBigquery = true
+		log.Infof(ctx, "bigquery enabled")
+	} else {
+		log.Infof(ctx, "bigquery disabled")
+	}
+
 	var ds datastore.DataStore
 
 	storageClient, err := storage.NewClient(ctx)
@@ -139,6 +147,10 @@ func main() {
 		ds = datastore.Memcache{
 			Inner: ds,
 		}
+	}
+
+	if enableBigquery {
+		InitBigquery(ctx)
 	}
 
 	blobStore = objectstore.Store{
@@ -368,10 +380,13 @@ func apiPutHandler(c *gin.Context) {
 		return
 	}
 
+	requested := []string{}
+
 	var res api.PutResponse
 	res.Hash = make([]utils.Hash, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
 		h, err := blobStore.Put(ctx, blob)
+		requested = append(requested, string(h))
 		if err != nil {
 			log.Errorf(ctx, "error adding blob: %s", err)
 			continue
@@ -379,6 +394,18 @@ func apiPutHandler(c *gin.Context) {
 		log.Infof(ctx, "added blob: %s", h)
 		res.Hash = append(res.Hash, h)
 	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceAPI,
+		Operation:     OperationPut,
+		APIKey:        key,
+		Requested:     requested,
+	})
 
 	log.Debugf(ctx, "res: %#v", res)
 	c.JSON(http.StatusOK, res)
@@ -434,19 +461,40 @@ func apiGetHandler(c *gin.Context) {
 
 	var depth uint = 10
 
+	requested := []string{}
+	found := []string{}
+	notFound := []string{}
+
 	var res api.GetResponse
 	res.Items = make(map[utils.Hash][]byte, len(req.Items))
 	for _, item := range req.Items {
+		requested = append(requested, string(item.Root))
 		blobs, err := fetchNodes(ctx, item.Root, depth)
 		if err != nil {
 			log.Errorf(ctx, "error getting blob %q: %s", item.Root, err)
+			notFound = append(notFound, string(item.Root))
 			continue
 		}
 		for _, blob := range blobs {
 			hash := utils.ComputeHash(blob)
+			found = append(found, string(hash))
 			res.Items[hash] = blob
 		}
 	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceAPI,
+		Operation:     OperationGet,
+		APIKey:        key,
+		Requested:     requested,
+		Found:         found,
+		NotFound:      notFound,
+	})
 
 	c.JSON(http.StatusOK, res)
 }
@@ -516,6 +564,19 @@ func browseBlobHandler(c *gin.Context) {
 		log.Errorf(ctx, "could not parse blob %s: %s", target, err)
 		node = nil
 	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceWeb,
+		Operation:     OperationGet,
+		APIKey:        "www",
+		Requested:     []string{string(target)},
+	})
+
 	serveUI1(c, root, path, nodeRaw, node)
 }
 

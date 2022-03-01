@@ -18,3 +18,5 @@
 /tools
 
 /.git
+
+/credentials.json

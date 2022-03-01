@@ -3,6 +3,7 @@ module github.com/google/ent
 go 1.15
 
 require (
+	cloud.google.com/go/bigquery v1.28.0 // indirect
 	cloud.google.com/go/firestore v1.1.0
 	cloud.google.com/go/storage v1.20.0
 	github.com/BurntSushi/toml v0.3.1

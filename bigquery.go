@@ -34,7 +34,7 @@ const (
 
 var bigqueryTable *bigquery.Table
 
-func InitBigquery(ctx context.Context) {
+func InitBigquery(ctx context.Context, dataset string, table string) {
 	opts := []option.ClientOption{}
 	c, _ := ioutil.ReadFile("./credentials.json")
 	if len(c) > 0 {
@@ -47,7 +47,7 @@ func InitBigquery(ctx context.Context) {
 	if err != nil {
 		log.Errorf(ctx, "could not create bigquery client: %v", err)
 	}
-	bigqueryTable = bigqueryClient.Dataset("access_logs").Table("logs")
+	bigqueryTable = bigqueryClient.Dataset(dataset).Table(table)
 }
 
 func LogAccess(ctx context.Context, v AccessItem) {

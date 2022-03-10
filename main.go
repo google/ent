@@ -52,9 +52,8 @@ var (
 )
 
 const (
-	objectsBucketName = "ent-objects"
-	wwwSegment        = "www"
-	defaultPort       = 27333
+	wwwSegment  = "www"
+	defaultPort = 27333
 )
 
 var domainName = "localhost:8088"
@@ -131,16 +130,22 @@ func main() {
 
 	var ds datastore.DataStore
 
-	storageClient, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Errorf(ctx, "could not create storage client: %v", err)
-		ds = datastore.File{
-			DirName: "data/objects",
+	objectsBucketName := os.Getenv("CLOUD_STORAGE_BUCKET")
+	if objectsBucketName != "" {
+		log.Infof(ctx, "using Cloud Storage bucket: %q", objectsBucketName)
+		storageClient, err := storage.NewClient(ctx)
+		if err != nil {
+			log.Errorf(ctx, "could not create Cloud Storage client: %v", err)
+			return
 		}
-	} else {
 		ds = datastore.Cloud{
 			Client:     storageClient,
 			BucketName: objectsBucketName,
+		}
+	} else {
+		log.Infof(ctx, "using local file system")
+		ds = datastore.File{
+			DirName: "data/objects",
 		}
 	}
 
@@ -151,7 +156,10 @@ func main() {
 	}
 
 	if enableBigquery {
-		InitBigquery(ctx)
+		bigqueryDataset := os.Getenv("BIGQUERY_DATASET")
+		bigqueryTable := os.Getenv("BIGQUERY_TABLE")
+		log.Infof(ctx, "bigquery dataset: %q, table: %q", bigqueryDataset, bigqueryTable)
+		InitBigquery(ctx, bigqueryDataset, bigqueryTable)
 	}
 
 	blobStore = objectstore.Store{
@@ -186,13 +194,13 @@ func main() {
 		router.POST(api.APIV1BLOBSGET, apiGetHandler)
 		router.POST(api.APIV1BLOBSPUT, apiPutHandler)
 
-		router.GET("/raw/:root", httpAPIGetHandler)
+		router.GET("/raw/:digest", httpAPIGetHandler)
 		router.PUT("/raw", httpAPIPutHandler)
 
-		router.GET("/:root", renderHandler)
+		router.GET("/:digest", renderHandler)
 
-		router.GET("/browse/:root", browseBlobHandler)
-		router.GET("/browse/:root/*path", browseBlobHandler)
+		router.GET("/browse/:digest", browseBlobHandler)
+		router.GET("/browse/:digest/*path", browseBlobHandler)
 
 		router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
@@ -520,14 +528,14 @@ func httpAPIGetHandler(c *gin.Context) {
 		return
 	}
 
-	root, err := utils.ParseHash(c.Param("root"))
+	digest, err := utils.ParseHash(c.Param("digest"))
 	if err != nil {
-		log.Errorf(ctx, "could not parse root: %s", err)
+		log.Errorf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 
-	target := root
+	target := digest
 
 	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
@@ -598,22 +606,22 @@ func httpAPIPutHandler(c *gin.Context) {
 	c.Status(http.StatusCreated)
 }
 
-func traverse(ctx context.Context, root utils.Hash, segments []utils.Selector) (utils.Hash, error) {
+func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector) (utils.Hash, error) {
 	if len(segments) == 0 {
-		return root, nil
+		return digest, nil
 	} else {
-		nodeRaw, err := blobStore.Get(ctx, root)
+		nodeRaw, err := blobStore.Get(ctx, digest)
 		if err != nil {
-			return "", fmt.Errorf("could not get blob %s: %w", root, err)
+			return "", fmt.Errorf("could not get blob %s: %w", digest, err)
 		}
 		node, err := utils.ParseNode(nodeRaw)
 		if err != nil {
-			return "", fmt.Errorf("could not parse node %s: %w", root, err)
+			return "", fmt.Errorf("could not parse node %s: %w", digest, err)
 		}
 		selector := segments[0]
 		next := node.Links[selector.FieldID][selector.Index]
 		if err != nil {
-			return "", fmt.Errorf("could not traverse %s/%v: %w", root, selector, err)
+			return "", fmt.Errorf("could not traverse %s/%v: %w", digest, selector, err)
 		}
 		log.Debugf(ctx, "next: %v", next)
 		return traverse(ctx, next.Hash, segments[1:])
@@ -632,9 +640,9 @@ func browseBlobHandler(c *gin.Context) {
 		return
 	}
 
-	root, err := utils.ParseHash(c.Param("root"))
+	digest, err := utils.ParseHash(c.Param("digest"))
 	if err != nil {
-		log.Errorf(ctx, "could not parse root: %s", err)
+		log.Errorf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -644,13 +652,13 @@ func browseBlobHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
-	target, err := traverse(ctx, root, path)
+	target, err := traverse(ctx, digest, path)
 	if err != nil {
 		log.Errorf(ctx, "could not traverse: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
-	log.Infof(ctx, "root: %v", root)
+	log.Infof(ctx, "target: %v", target)
 	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
 		log.Errorf(ctx, "could not get blob %s: %s", target, err)
@@ -676,7 +684,7 @@ func browseBlobHandler(c *gin.Context) {
 		Requested:     []string{string(target)},
 	})
 
-	serveUI1(c, root, path, nodeRaw, node)
+	serveUI1(c, target, path, nodeRaw, node)
 }
 
 func renderHandler(c *gin.Context) {

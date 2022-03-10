@@ -95,39 +95,43 @@ An Ent Server may be running locally (on port 27333 by default), or remotely.
 Some Ent Servers require the user to be authenticated in order for the user to
 read and / or write, which is performed via an API key.
 
-### Plain HTTP API
+### Raw HTTP API
 
-The plain HTTP API is meant to be used by existing clients without requiring any
+The raw HTTP API is meant to be used by existing tools without requiring any
 serialization.
 
-The API supports the following operations:
+The API supports the following HTTP operations:
 
 - `GET /raw/:digest`
 - `PUT /raw`
 
 For instance, this API can be used directly via `curl`:
 
-```console
-$ curl --header 'Authorization: Bearer xxx' localhost:27333/raw/sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100  390k    0  390k    0     0  5818k      0 --:--:-- --:--:-- --:--:-- 5832k
-4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192  -
-```
+- Get an object by digest:
 
-```console
-$ curl --header 'Authorization: Bearer yyy' --upload-file README.md --head localhost:27333/raw
+  ```console
+  $ curl --header 'Authorization: Bearer xxx' localhost:27333/raw/sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
+                                  Dload  Upload   Total   Spent    Left  Speed
+  100  390k    0  390k    0     0  5818k      0 --:--:-- --:--:-- --:--:-- 5832k
+  4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192  -
+  ```
+
+- Put an object:
+
+  ```console
+  $ curl --header 'Authorization: Bearer yyy' --upload-file README.md --head localhost:27333/raw
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 100 Continue
 
-HTTP/1.1 201 Created
-Location: /raw/sha256:c1a4c83dfeca632af8dcac3591f4b01a303342cf0bae0a63d9a5d7688b0e77cc
-Date: Thu, 10 Mar 2022 18:00:45 GMT
-Content-Length: 0
+  HTTP/1.1 201 Created
+  Location: /raw/sha256:c1a4c83dfeca632af8dcac3591f4b01a303342cf0bae0a63d9a5d7688b0e77cc
+  Date: Thu, 10 Mar 2022 18:00:45 GMT
+  Content-Length: 0
 
-100  8013    0     0  100  8013      0   132k --:--:-- --:--:-- --:--:--  134k
-```
+  100  8013    0     0  100  8013      0   132k --:--:-- --:--:-- --:--:--  134k
+  ```
 
 ## Ent Index
 

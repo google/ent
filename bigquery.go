@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"os"
+	"io/ioutil"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -36,7 +36,7 @@ var bigqueryTable *bigquery.Table
 
 func InitBigquery(ctx context.Context) {
 	opts := []option.ClientOption{}
-	c, _ := os.ReadFile("./credentials.json")
+	c, _ := ioutil.ReadFile("./credentials.json")
 	if len(c) > 0 {
 		log.Infof(ctx, "using credentials file")
 		opts = append(opts, option.WithCredentialsJSON(c))

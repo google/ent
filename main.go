@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -185,8 +186,8 @@ func main() {
 		router.POST(api.APIV1BLOBSGET, apiGetHandler)
 		router.POST(api.APIV1BLOBSPUT, apiPutHandler)
 
-		router.POST("/api/v1/links/get", apiGetHandler)
-		router.POST("/api/v1/links/update", apiPutHandler)
+		router.GET("/raw/:root", httpAPIGetHandler)
+		router.PUT("/raw", httpAPIPutHandler)
 
 		router.GET("/:root", renderHandler)
 
@@ -365,9 +366,9 @@ type MutateRequest struct{}
 
 func apiPutHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
-	key := c.Query("key")
-	if key != readWriteAPIKey {
-		log.Errorf(ctx, "invalid key: %q", key)
+	apiKey := getAPIKey(c)
+	if apiKey != readWriteAPIKey {
+		log.Errorf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -403,7 +404,7 @@ func apiPutHandler(c *gin.Context) {
 		RequestURI:    c.Request.RequestURI,
 		Source:        SourceAPI,
 		Operation:     OperationPut,
-		APIKey:        key,
+		APIKey:        apiKey,
 		Requested:     requested,
 	})
 
@@ -448,9 +449,9 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 
 func apiGetHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
-	key := c.Query("key")
-	if key != readAPIKey && key != readWriteAPIKey {
-		log.Errorf(ctx, "invalid key: %q", key)
+	apiKey := getAPIKey(c)
+	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
+		log.Errorf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -490,13 +491,111 @@ func apiGetHandler(c *gin.Context) {
 		RequestURI:    c.Request.RequestURI,
 		Source:        SourceAPI,
 		Operation:     OperationGet,
-		APIKey:        key,
+		APIKey:        apiKey,
 		Requested:     requested,
 		Found:         found,
 		NotFound:      notFound,
 	})
 
 	c.JSON(http.StatusOK, res)
+}
+
+func getAPIKey(c *gin.Context) string {
+	const header = "Authorization"
+	authorization := c.Request.Header.Get(header)
+	const prefix = "Bearer "
+	if strings.HasPrefix(authorization, prefix) {
+		return strings.TrimPrefix(authorization, prefix)
+	} else {
+		return ""
+	}
+}
+
+func httpAPIGetHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
+	apiKey := getAPIKey(c)
+	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
+		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	root, err := utils.ParseHash(c.Param("root"))
+	if err != nil {
+		log.Errorf(ctx, "could not parse root: %s", err)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	target := root
+
+	nodeRaw, err := blobStore.Get(ctx, target)
+	if err != nil {
+		log.Errorf(ctx, "could not get blob %s: %s", target, err)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceAPI,
+		Operation:     OperationGet,
+		APIKey:        apiKey,
+		Requested:     []string{string(target)},
+		Found:         []string{string(target)},
+		NotFound:      []string{},
+	})
+
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", nodeRaw)
+}
+
+func httpAPIPutHandler(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
+	apiKey := getAPIKey(c)
+	if apiKey != readWriteAPIKey {
+		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	nodeRaw, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Errorf(ctx, "could not read node: %s", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	h, err := blobStore.Put(ctx, nodeRaw)
+	if err != nil {
+		log.Errorf(ctx, "could not put blob: %s", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceAPI,
+		Operation:     OperationPut,
+		APIKey:        apiKey,
+		Requested:     []string{string(h)},
+		Found:         []string{string(h)},
+		NotFound:      []string{},
+	})
+
+	redirect := fmt.Sprintf("/raw/%s", h)
+	log.Infof(ctx, "redirecting to %s", redirect)
+
+	c.Header("Location", redirect)
+	// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
+	c.Status(http.StatusCreated)
 }
 
 func traverse(ctx context.Context, root utils.Hash, segments []utils.Selector) (utils.Hash, error) {
@@ -608,6 +707,18 @@ func renderHandler(c *gin.Context) {
 		c.Abort()
 		return
 	}
+
+	LogAccess(ctx, AccessItem{
+		Timestamp2:    time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+		Source:        SourceWeb,
+		Operation:     OperationGet,
+		APIKey:        "www",
+		Requested:     []string{string(target)},
+	})
 
 	c.Header("ent-hash", string(target))
 	contentType := http.DetectContentType(nodeRaw)

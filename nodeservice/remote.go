@@ -47,16 +47,23 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error encoding JSON request: %w", err)
 	}
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET+"?key="+s.APIKey, "application/json", &reqBytes)
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpClient := http.Client{}
+	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
 		return nil, err
 	}
-	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error: %v", r.Status)
+	if httpRes.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("error: %v", httpRes.Status)
 	}
 
 	res := api.GetResponse{}
-	err = json.NewDecoder(r.Body).Decode(&res)
+	err = json.NewDecoder(httpRes.Body).Decode(&res)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding JSON response: %w", err)
 	}
@@ -78,16 +85,23 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	if err != nil {
 		return "", fmt.Errorf("error encoding JSON request: %w", err)
 	}
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSPUT+"?key="+s.APIKey, "application/json", &reqBytes)
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSPUT, &reqBytes)
+	if err != nil {
+		return "", fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpClient := http.Client{}
+	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
-	if r.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error: %v", r.Status)
+	if httpRes.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("error: %v", httpRes.Status)
 	}
 
 	res := api.PutResponse{}
-	err = json.NewDecoder(r.Body).Decode(&res)
+	err = json.NewDecoder(httpRes.Body).Decode(&res)
 	if err != nil {
 		return "", fmt.Errorf("error decoding JSON response: %w", err)
 	}
@@ -103,15 +117,22 @@ func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	}
 	reqBytes := bytes.Buffer{}
 	json.NewEncoder(&reqBytes).Encode(req)
-	r, err := http.Post(s.APIURL+api.APIV1BLOBSGET+"?key="+s.APIKey, "application/json", &reqBytes)
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
+	if err != nil {
+		return false, fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpClient := http.Client{}
+	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
 		log.Errorf(ctx, "error sending request: %v", err)
 	}
-	if r.StatusCode == http.StatusOK {
+	if httpRes.StatusCode == http.StatusOK {
 		return true, nil
 	}
-	if r.StatusCode == http.StatusNotFound {
+	if httpRes.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	return false, fmt.Errorf("invalid status code: %d", r.StatusCode)
+	return false, fmt.Errorf("invalid status code: %d", httpRes.StatusCode)
 }

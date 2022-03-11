@@ -52,7 +52,7 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpReq.Header.Set("x-api-key", s.APIKey)
 	httpClient := http.Client{}
 	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
@@ -90,7 +90,7 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	if err != nil {
 		return "", fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpReq.Header.Set("x-api-key", s.APIKey)
 	httpClient := http.Client{}
 	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
@@ -122,7 +122,7 @@ func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+s.APIKey)
+	httpReq.Header.Set("x-api-key", s.APIKey)
 	httpClient := http.Client{}
 	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {

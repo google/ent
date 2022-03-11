@@ -123,7 +123,7 @@ For instance, this API may be used directly from the terminal via `curl`:
 - Get an object by digest:
 
   ```console
-  $ curl --header 'Authorization: Bearer xxx' localhost:27333/raw/sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
+  $ curl --header 'x-api-key: xxx' localhost:27333/raw/sha256:4c350163715b7b1d0fc3bcbf11bfffc0cf2d107f69253f237111a7480809e192 | sha256sum
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                   Dload  Upload   Total   Spent    Left  Speed
   100  390k    0  390k    0     0  5818k      0 --:--:-- --:--:-- --:--:-- 5832k
@@ -133,7 +133,7 @@ For instance, this API may be used directly from the terminal via `curl`:
 - Put an object:
 
   ```console
-  $ curl --header 'Authorization: Bearer yyy' --upload-file README.md --head localhost:27333/raw
+  $ curl --header 'x-api-key: yyy' --upload-file README.md --head localhost:27333/raw
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                   Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 100 Continue

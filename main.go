@@ -355,14 +355,9 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 }
 
 func getAPIKey(c *gin.Context) string {
-	const header = "Authorization"
-	authorization := c.Request.Header.Get(header)
-	const prefix = "Bearer "
-	if strings.HasPrefix(authorization, prefix) {
-		return strings.TrimPrefix(authorization, prefix)
-	} else {
-		return ""
-	}
+	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
+	const header = "x-api-key"
+	return c.Request.Header.Get(header)
 }
 
 func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector) (utils.Hash, error) {

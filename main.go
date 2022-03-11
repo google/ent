@@ -17,9 +17,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -196,8 +194,8 @@ func main() {
 		router.GET("/raw/:digest", rawGetHandler)
 		router.PUT("/raw", rawPutHandler)
 
-		router.GET("/web/:digest", browseBlobHandler)
-		router.GET("/web/:digest/*path", browseBlobHandler)
+		router.GET("/web/:digest", webGetHandler)
+		router.GET("/web/:digest/*path", webGetHandler)
 
 		router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
@@ -321,104 +319,6 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 	}
 }
 
-func serveWWW(c *gin.Context, root utils.Hash, segments []utils.Selector) {
-	/*
-		target, err := traverse(c, root, segments)
-		if err != nil {
-			log.Print(err)
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		log.Printf("target: %s", target)
-
-		node, err := blobStore.GetObject(c, target)
-		if err != nil {
-			log.Print(err)
-			c.Abort()
-			return
-		}
-			switch node := node.(type) {
-			case *merkledag.RawNode:
-				c.Header("ent-hash", target.String())
-				ext := filepath.Ext(segments[len(segments)-1])
-				contentType := mime.TypeByExtension(ext)
-				if contentType == "" {
-					contentType = http.DetectContentType(node.RawData())
-				}
-				c.Header("Content-Type", contentType)
-				c.Data(http.StatusOK, "", node.RawData())
-				return
-			case *merkledag.ProtoNode:
-				serveUI(c, root, segments, target, node)
-			default:
-				log.Printf("unknown codec: %v", target.Prefix().Codec)
-				c.AbortWithStatus(http.StatusBadRequest)
-				return
-			}
-	*/
-}
-
-type RenameRequest struct {
-	Root     string
-	FromPath string
-	ToPath   string
-}
-
-type RemoveRequest struct {
-	Root string
-	Path string
-}
-
-type MutateRequest struct{}
-
-func apiPutHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
-	accessItem := &LogItemPut{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceAPI,
-	}
-	defer LogPut(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	var req api.PutRequest
-	err := json.NewDecoder(c.Request.Body).Decode(&req)
-	if err != nil {
-		log.Errorf(ctx, "could not parse request: %v", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	var res api.PutResponse
-	res.Hash = make([]utils.Hash, 0, len(req.Blobs))
-	for _, blob := range req.Blobs {
-		h, err := blobStore.Put(ctx, blob)
-		accessItem.Digest = append(accessItem.Digest, string(h))
-		if err != nil {
-			log.Errorf(ctx, "error adding blob: %s", err)
-			accessItem.NotCreated = append(accessItem.NotCreated, string(h))
-			continue
-		}
-		log.Infof(ctx, "added blob: %s", h)
-		accessItem.Created = append(accessItem.Created, string(h))
-		res.Hash = append(res.Hash, h)
-	}
-
-	log.Debugf(ctx, "res: %#v", res)
-	c.JSON(http.StatusOK, res)
-}
-
 func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, error) {
 	log.Debugf(ctx, "fetching nodes for %s depth %d", root, depth)
 	var nodes [][]byte
@@ -454,53 +354,6 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 	}
 }
 
-func apiGetHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
-	accessItem := &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceAPI,
-	}
-	defer LogGet(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	var req api.GetRequest
-	json.NewDecoder(c.Request.Body).Decode(&req)
-	log.Debugf(ctx, "req: %#v", req)
-
-	var depth uint = 10
-
-	var res api.GetResponse
-	res.Items = make(map[utils.Hash][]byte, len(req.Items))
-	for _, item := range req.Items {
-		accessItem.Digest = append(accessItem.Digest, string(item.Root))
-		blobs, err := fetchNodes(ctx, item.Root, depth)
-		if err != nil {
-			log.Errorf(ctx, "error getting blob %q: %s", item.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, string(item.Root))
-			continue
-		}
-		for _, blob := range blobs {
-			hash := utils.ComputeHash(blob)
-			accessItem.Found = append(accessItem.Found, string(hash))
-			res.Items[hash] = blob
-		}
-	}
-
-	c.JSON(http.StatusOK, res)
-}
-
 func getAPIKey(c *gin.Context) string {
 	const header = "Authorization"
 	authorization := c.Request.Header.Get(header)
@@ -510,96 +363,6 @@ func getAPIKey(c *gin.Context) string {
 	} else {
 		return ""
 	}
-}
-
-func rawGetHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
-	accessItem := &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceRaw,
-	}
-	defer LogGet(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	digest, err := utils.ParseHash(c.Param("digest"))
-	if err != nil {
-		log.Errorf(ctx, "could not parse digest: %s", err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	accessItem.Digest = append(accessItem.Digest, string(digest))
-
-	target := digest
-
-	nodeRaw, err := blobStore.Get(ctx, target)
-	if err != nil {
-		log.Errorf(ctx, "could not get blob %s: %s", target, err)
-		accessItem.NotFound = append(accessItem.NotFound, string(digest))
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	accessItem.Found = append(accessItem.Found, string(digest))
-
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", nodeRaw)
-}
-
-func rawPutHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
-	accessItem := &LogItemPut{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceRaw,
-	}
-	defer LogPut(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	nodeRaw, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Errorf(ctx, "could not read node: %s", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	h, err := blobStore.Put(ctx, nodeRaw)
-	accessItem.Digest = append(accessItem.Digest, string(h))
-	if err != nil {
-		log.Errorf(ctx, "could not put blob: %s", err)
-		accessItem.NotCreated = append(accessItem.NotCreated, string(h))
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	accessItem.Created = append(accessItem.Created, string(h))
-
-	location := fmt.Sprintf("/raw/%s", h)
-	log.Infof(ctx, "new object location: %q", location)
-
-	c.Header("Location", location)
-	// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
-	c.Status(http.StatusCreated)
 }
 
 func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector) (utils.Hash, error) {
@@ -622,65 +385,6 @@ func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector)
 		log.Debugf(ctx, "next: %v", next)
 		return traverse(ctx, next.Hash, segments[1:])
 	}
-}
-
-func browseBlobHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
-	accessItem := &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceWeb,
-		APIKey:        "www",
-	}
-	defer LogGet(ctx, accessItem)
-
-	if strings.HasSuffix(c.Request.URL.Path, "/") {
-		to := strings.TrimSuffix(c.Request.URL.Path, "/")
-		log.Infof(ctx, "redirecting to: %q", to)
-		c.Redirect(http.StatusMovedPermanently, to)
-		return
-	}
-
-	digest, err := utils.ParseHash(c.Param("digest"))
-	if err != nil {
-		log.Warningf(ctx, "could not parse digest: %s", err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	accessItem.Digest = append(accessItem.Digest, string(digest))
-	path, err := utils.ParsePath(c.Param("path"))
-	if err != nil {
-		log.Warningf(ctx, "invalid path: %v", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	target, err := traverse(ctx, digest, path)
-	if err != nil {
-		log.Warningf(ctx, "could not traverse: %s", err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	log.Infof(ctx, "target: %v", target)
-	nodeRaw, err := blobStore.Get(ctx, target)
-	if err != nil {
-		log.Warningf(ctx, "could not get blob %s: %s", target, err)
-		accessItem.NotFound = append(accessItem.NotFound, string(digest))
-		c.Abort()
-		return
-	}
-	accessItem.Found = append(accessItem.Found, string(digest))
-	node := &utils.Node{}
-	err = json.Unmarshal(nodeRaw, node)
-	if err != nil {
-		log.Warningf(ctx, "could not parse blob %s: %s", target, err)
-		node = nil
-	}
-
-	serveUI1(c, target, path, nodeRaw, node)
 }
 
 func renderHandler(c *gin.Context) {

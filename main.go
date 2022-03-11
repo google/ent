@@ -261,7 +261,7 @@ func parseHost(p string) []string {
 	}
 }
 
-func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawData []byte, node *utils.Node) {
+func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawData []byte, node *utils.DAGNode) {
 	templateSegments := []UIPathSegment{}
 	for i, s := range segments {
 		templateSegments = append(templateSegments, UIPathSegment{
@@ -331,7 +331,7 @@ func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, err
 
 	nodes = append(nodes, blob)
 
-	node, err := utils.ParseNode(blob)
+	node, err := utils.ParseDAGNode(blob)
 	if err != nil {
 		log.Errorf(ctx, "error parsing blob %q: %s", root, err)
 		return nodes, nil
@@ -368,7 +368,7 @@ func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector)
 		if err != nil {
 			return "", fmt.Errorf("could not get blob %s: %w", digest, err)
 		}
-		node, err := utils.ParseNode(nodeRaw)
+		node, err := utils.ParseDAGNode(nodeRaw)
 		if err != nil {
 			return "", fmt.Errorf("could not parse node %s: %w", digest, err)
 		}

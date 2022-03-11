@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Node struct {
+type DAGNode struct {
 	Links map[uint][]Link
 }
 
@@ -33,8 +33,8 @@ type Selector struct {
 	Index   uint
 }
 
-func ParseNode(b []byte) (*Node, error) {
-	node := Node{}
+func ParseDAGNode(b []byte) (*DAGNode, error) {
+	node := DAGNode{}
 	err := json.Unmarshal(b, &node)
 	if err != nil {
 		return nil, fmt.Errorf("invalid node: %w", err)
@@ -42,7 +42,7 @@ func ParseNode(b []byte) (*Node, error) {
 	return &node, nil
 }
 
-func SerializeNode(node *Node) ([]byte, error) {
+func SerializeDAGNode(node *DAGNode) ([]byte, error) {
 	return json.Marshal(node)
 }
 

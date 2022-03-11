@@ -82,7 +82,7 @@ func TestGetStruct(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to put string: %v", err)
 	}
-	node := &utils.Node{
+	node := &utils.DAGNode{
 		Links: map[uint][]utils.Link{
 			0: {
 				{Hash: uintFieldDigest},
@@ -98,7 +98,7 @@ func TestGetStruct(t *testing.T) {
 			},
 		},
 	}
-	nodeBytes, err := utils.SerializeNode(node)
+	nodeBytes, err := utils.SerializeDAGNode(node)
 	if err != nil {
 		t.Fatalf("failed to serialize node: %v", err)
 	}

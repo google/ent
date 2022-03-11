@@ -53,7 +53,7 @@ func ResolveLink(o nodeservice.ObjectGetter, base utils.Hash, path []utils.Selec
 		if err != nil {
 			return "", fmt.Errorf("failed to get object: %v", err)
 		}
-		node, err := utils.ParseNode(object)
+		node, err := utils.ParseDAGNode(object)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse object: %v", err)
 		}
@@ -69,7 +69,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 	if err != nil {
 		return fmt.Errorf("failed to get struct object: %v", err)
 	}
-	node, err := utils.ParseNode(object)
+	node, err := utils.ParseDAGNode(object)
 	if err != nil {
 		return fmt.Errorf("failed to parse struct object: %v", err)
 	}
@@ -149,7 +149,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 }
 
 func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
-	node := utils.Node{
+	node := utils.DAGNode{
 		Links: make(map[uint][]utils.Link),
 	}
 	rv := reflect.ValueOf(v)
@@ -231,7 +231,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			return "", fmt.Errorf("unsupported field type: %v", typeField.Type.Kind())
 		}
 	}
-	b, err := utils.SerializeNode(&node)
+	b, err := utils.SerializeDAGNode(&node)
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize node: %v", err)
 	}

@@ -38,7 +38,7 @@ func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindID uint32
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)
 	}
-	node, err := utils.ParseNode(object)
+	node, err := utils.ParseDAGNode(object)
 	if err != nil {
 		fmt.Printf("%s %s\n", strings.Repeat("  ", indent), object)
 		return

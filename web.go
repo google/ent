@@ -71,7 +71,7 @@ func webGetHandler(c *gin.Context) {
 		return
 	}
 	accessItem.Found = append(accessItem.Found, string(digest))
-	node := &utils.Node{}
+	node := &utils.DAGNode{}
 	err = json.Unmarshal(nodeRaw, node)
 	if err != nil {
 		log.Warningf(ctx, "could not parse blob %s: %s", target, err)

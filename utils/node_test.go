@@ -43,12 +43,12 @@ func TestParsePath(t *testing.T) {
 	tests := []struct {
 		name string
 		s    string
-		want []Selector
+		want Path
 	}{
 		{
 			name: "empty",
 			s:    "",
-			want: nil,
+			want: []Selector{},
 		},
 		{
 			name: "invalid",

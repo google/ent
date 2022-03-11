@@ -129,9 +129,9 @@ func fetch(urlString string) (*index.IndexEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read HTTP body: %w", err)
 	}
-	h := utils.ComputeDigest(data)
+	digest := utils.ComputeDigest(data)
 
-	l := filepath.Join(indexFlag, index.DigestToPath(h), index.EntryFilename)
+	l := filepath.Join(indexFlag, index.DigestToPath(digest), index.EntryFilename)
 
 	var e index.IndexEntry
 	if _, err := os.Stat(l); err == nil {
@@ -155,12 +155,12 @@ func fetch(urlString string) (*index.IndexEntry, error) {
 
 		// Fix all fields just in case.
 		e.MediaType = http.DetectContentType(data)
-		e.Digest = h
+		e.Digest = string(digest)
 		e.Size = len(data)
 	} else {
 		e = index.IndexEntry{
 			MediaType: http.DetectContentType(data),
-			Digest:    h,
+			Digest:    string(digest),
 			Size:      len(data),
 			URLS:      []string{urlString},
 		}

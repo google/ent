@@ -7,19 +7,24 @@ import (
 )
 
 type Node struct {
-	Links map[uint][]Target
+	Links map[uint][]Link
 }
 
-type Target struct {
+const (
+	TypeRaw = 0
+	TypeDAG = 1
+)
+
+type Link struct {
 	Type uint32
 	Hash Hash
 }
 
-type Link struct {
-	// If base is empty, then it is relative to the same root.
-	Base Hash
-	Path Path
-}
+// type Link struct {
+// 	// If base is empty, then it is relative to the same root.
+// 	Base Hash
+// 	Path Path
+// }
 
 type Path []Selector
 

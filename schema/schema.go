@@ -150,7 +150,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Hash, v interface{}) err
 
 func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 	node := utils.Node{
-		Links: make(map[uint][]utils.Target),
+		Links: make(map[uint][]utils.Link),
 	}
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr {
@@ -170,7 +170,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put uint32 field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 				Hash: h,
 			})
 		case reflect.String:
@@ -178,7 +178,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put string field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 				Hash: h,
 			})
 		case reflect.Struct:
@@ -186,7 +186,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 			if err != nil {
 				return "", fmt.Errorf("failed to put struct field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 				Hash: h,
 			})
 		case reflect.Slice:
@@ -198,7 +198,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put uint32 field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 						Hash: h,
 					})
 				}
@@ -209,7 +209,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put string field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 						Hash: h,
 					})
 				}
@@ -220,7 +220,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Hash, error) {
 					if err != nil {
 						return "", fmt.Errorf("failed to put string field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Target{
+					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
 						Hash: h,
 					})
 				}

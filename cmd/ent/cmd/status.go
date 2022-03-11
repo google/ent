@@ -40,14 +40,21 @@ var statusCmd = &cobra.Command{
 
 func status(hash utils.Hash) {
 	config := readConfig()
+	s := []<-chan string{}
 	for _, remote := range config.Remotes {
-		objectGetter := getObjectGetter(remote)
-		marker := color.GreenString("✓")
-		_, err := objectGetter.Get(context.Background(), hash)
-		if err != nil {
-			marker = color.RedString("✗")
-		}
-		fmt.Printf("%s %s [%s]\n", color.YellowString(string(hash)), marker, remote.Name)
+		c := make(chan string)
+		s = append(s, c)
+		go func(remote Remote, c chan<- string) {
+			objectGetter := getObjectGetter(remote)
+			marker := color.GreenString("✓")
+			_, err := objectGetter.Get(context.Background(), hash)
+			if err != nil {
+				marker = color.RedString("✗")
+			}
+			c <- fmt.Sprintf("%s %s [%s]\n", color.YellowString(string(hash)), marker, remote.Name)
+		}(remote, c)
 	}
-
+	for _, c := range s {
+		fmt.Printf(<-c)
+	}
 }

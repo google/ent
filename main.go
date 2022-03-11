@@ -598,10 +598,10 @@ func httpAPIPutHandler(c *gin.Context) {
 		NotFound:      []string{},
 	})
 
-	redirect := fmt.Sprintf("/raw/%s", h)
-	log.Infof(ctx, "redirecting to %s", redirect)
+	location := fmt.Sprintf("/raw/%s", h)
+	log.Infof(ctx, "new object location: %q", location)
 
-	c.Header("Location", redirect)
+	c.Header("Location", location)
 	// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
 	c.Status(http.StatusCreated)
 }

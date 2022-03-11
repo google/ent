@@ -98,9 +98,11 @@ func getObjectStore(remote Remote) nodeservice.ObjectStore {
 }
 
 func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
-	inner := make([]nodeservice.ObjectGetter, 0)
+	inner := make([]nodeservice.Inner, 0)
 	for _, remote := range config.Remotes {
-		inner = append(inner, getObjectGetter(remote))
+		inner = append(inner, nodeservice.Inner{
+			Name:         remote.Name,
+			ObjectGetter: getObjectGetter(remote)})
 	}
 	return nodeservice.Multiplex{
 		Inner: inner,

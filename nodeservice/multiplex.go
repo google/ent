@@ -24,25 +24,32 @@ import (
 )
 
 type Multiplex struct {
-	Inner []ObjectGetter
+	Inner []Inner
+}
+
+type Inner struct {
+	Name         string
+	ObjectGetter ObjectGetter
 }
 
 func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
-	for i, ss := range s.Inner {
-		b, err := ss.Get(ctx, h)
-		if err != nil {
-			log.Errorf(ctx, "error fetching from remote %d: %v", i, err)
+	for _, ss := range s.Inner {
+		b, err := ss.ObjectGetter.Get(ctx, h)
+		if err == ErrNotFound {
+			continue
+		} else if err != nil {
+			log.Errorf(ctx, "error fetching from remote %q: %v", ss.Name, err)
 			continue
 		}
-		log.Infof(ctx, "fetched from remote %d", i)
+		log.Infof(ctx, "fetched from remote %q", ss.Name)
 		return b, nil
 	}
 	return nil, fmt.Errorf("not found")
 }
 
 func (s Multiplex) Has(ctx context.Context, h utils.Hash) (bool, error) {
-	for _, i := range s.Inner {
-		b, err := i.Has(ctx, h)
+	for _, ss := range s.Inner {
+		b, err := ss.ObjectGetter.Has(ctx, h)
 		if err != nil {
 			continue
 		}

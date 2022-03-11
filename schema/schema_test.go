@@ -85,16 +85,16 @@ func TestGetStruct(t *testing.T) {
 	node := &utils.DAGNode{
 		Links: map[uint][]utils.Link{
 			0: {
-				{Hash: uintFieldDigest},
+				{Digest: uintFieldDigest},
 			},
 			1: {
-				{Hash: stringFieldDigest},
+				{Digest: stringFieldDigest},
 			},
 			2: {
-				{Hash: uintFieldDigest},
+				{Digest: uintFieldDigest},
 			},
 			3: {
-				{Hash: uintFieldDigest},
+				{Digest: uintFieldDigest},
 			},
 		},
 	}

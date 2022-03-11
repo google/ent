@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func get(hash utils.Hash) {
+func get(digest utils.Digest) {
 	config := readConfig()
 	objectGetter := getMultiplexObjectGetter(config)
-	object, err := objectGetter.Get(context.Background(), hash)
+	object, err := objectGetter.Get(context.Background(), digest)
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)
 	}
@@ -35,14 +35,14 @@ func get(hash utils.Hash) {
 }
 
 var getCmd = &cobra.Command{
-	Use:  "get [hash]",
+	Use:  "get [digest]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hash, err := utils.ParseHash(args[0])
+		digest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse hash: %v", err)
+			log.Fatalf("could not parse digest: %v", err)
 			return
 		}
-		get(hash)
+		get(digest)
 	},
 }

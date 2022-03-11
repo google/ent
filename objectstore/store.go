@@ -12,20 +12,20 @@ type Store struct {
 	Inner datastore.DataStore
 }
 
-func (s Store) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
-	b, err := s.Inner.Get(ctx, string(h))
+func (s Store) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
+	b, err := s.Inner.Get(ctx, string(digest))
 	if err != nil {
 		return nil, err
 	}
-	actualHash := utils.ComputeHash(b)
-	if actualHash != h {
-		return nil, fmt.Errorf("mismatching hashes: wanted:%q got:%q", string(h), string(actualHash))
+	actualDigest := utils.ComputeDigest(b)
+	if actualDigest != digest {
+		return nil, fmt.Errorf("mismatching digest: wanted:%q got:%q", string(digest), string(actualDigest))
 	}
 	return b, nil
 }
 
-func (s Store) Put(ctx context.Context, b []byte) (utils.Hash, error) {
-	h := utils.ComputeHash(b)
+func (s Store) Put(ctx context.Context, b []byte) (utils.Digest, error) {
+	h := utils.ComputeDigest(b)
 	err := s.Inner.Put(ctx, string(h), b)
 	if err != nil {
 		// Return digest anyways, useful for logging errors.
@@ -34,6 +34,6 @@ func (s Store) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	return h, nil
 }
 
-func (s Store) Has(ctx context.Context, h utils.Hash) (bool, error) {
-	return s.Inner.Has(ctx, string(h))
+func (s Store) Has(ctx context.Context, digest utils.Digest) (bool, error) {
+	return s.Inner.Has(ctx, string(digest))
 }

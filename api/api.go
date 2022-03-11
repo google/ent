@@ -27,7 +27,7 @@ type GetRequest struct {
 }
 
 type GetResponse struct {
-	Items map[utils.Hash][]byte `json:"items"`
+	Items map[utils.Digest][]byte `json:"items"`
 }
 
 type PutRequest struct {
@@ -35,5 +35,5 @@ type PutRequest struct {
 }
 
 type PutResponse struct {
-	Hash []utils.Hash `json:"hash"`
+	Digest []utils.Digest `json:"digest"`
 }

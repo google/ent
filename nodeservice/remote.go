@@ -36,11 +36,11 @@ var (
 	ErrNotFound = fmt.Errorf("not found")
 )
 
-func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
+func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	req := api.GetRequest{
 		Items: []utils.NodeID{{
 			Root: utils.Link{
-				Hash: h,
+				Digest: digest,
 			},
 		}},
 	}
@@ -70,7 +70,7 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 		return nil, fmt.Errorf("error decoding JSON response: %w", err)
 	}
 
-	item, ok := res.Items[h]
+	item, ok := res.Items[digest]
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -78,7 +78,7 @@ func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	return item, nil
 }
 
-func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
+func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	req := api.PutRequest{
 		Blobs: [][]byte{b},
 	}
@@ -108,14 +108,14 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 		return "", fmt.Errorf("error decoding JSON response: %w", err)
 	}
 
-	return res.Hash[0], nil
+	return res.Digest[0], nil
 }
 
-func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
+func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	req := api.GetRequest{
 		Items: []utils.NodeID{{
 			Root: utils.Link{
-				Hash: h,
+				Digest: digest,
 			},
 		}},
 	}

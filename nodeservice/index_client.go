@@ -32,9 +32,9 @@ type IndexClient struct {
 	BaseURL string
 }
 
-func (c IndexClient) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
-	log.Printf("%s\n", h)
-	u := c.BaseURL + "/" + path.Join(index.HashToPath(h), index.EntryFilename)
+func (c IndexClient) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
+	log.Printf("%s\n", string(digest))
+	u := c.BaseURL + "/" + path.Join(index.DigestToPath(digest), index.EntryFilename)
 	log.Printf("fetching entry from %s\n", u)
 	entryRes, err := http.Get(u)
 	if err != nil {
@@ -54,13 +54,13 @@ func (c IndexClient) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not download target: %w", err)
 	}
-	targetHash := utils.ComputeHash(target)
-	if targetHash != h {
-		return nil, fmt.Errorf("hash mismatch, wanted: %q, got %q", h, targetHash)
+	targetDigest := utils.ComputeDigest(target)
+	if targetDigest != digest {
+		return nil, fmt.Errorf("digest mismatch, wanted: %q, got %q", digest, targetDigest)
 	}
 	return target, nil
 }
 
-func (c IndexClient) Has(ctx context.Context, h utils.Hash) (bool, error) {
+func (c IndexClient) Has(ctx context.Context, h utils.Digest) (bool, error) {
 	return false, nil
 }

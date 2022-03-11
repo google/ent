@@ -33,8 +33,8 @@ var (
 	s          schema.Schema
 )
 
-func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindID uint32) {
-	object, err := o.Get(context.Background(), hash)
+func tree(o nodeservice.ObjectGetter, digest utils.Digest, indent int, kindID uint32) {
+	object, err := o.Get(context.Background(), digest)
 	if err != nil {
 		log.Fatalf("could not download target: %s", err)
 	}
@@ -54,9 +54,9 @@ func tree(o nodeservice.ObjectGetter, hash utils.Hash, indent int, kindID uint32
 		}
 		for index, link := range links {
 			selector := fmt.Sprintf("%s[%d]", fieldName, index)
-			fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Hash)))
+			fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Digest)))
 			fieldKindIndex := f.KindID
-			tree(o, link.Hash, indent+1, fieldKindIndex)
+			tree(o, link.Digest, indent+1, fieldKindIndex)
 		}
 	}
 }
@@ -80,31 +80,31 @@ func field(k schema.Kind, fieldID uint32) schema.Field {
 }
 
 var treeCmd = &cobra.Command{
-	Use:  "tree [hash]",
+	Use:  "tree [digest]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hash, err := utils.ParseHash(args[0])
+		digest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse hash: %v", err)
+			log.Fatalf("could not parse digest: %v", err)
 			return
 		}
 
 		config := readConfig()
 		o := getMultiplexObjectGetter(config)
 		if schemaFlag != "" {
-			schemaHash, err := utils.ParseHash(schemaFlag)
+			schemaDigest, err := utils.ParseDigest(schemaFlag)
 			if err != nil {
-				log.Fatalf("could not parse schema hash: %v", err)
+				log.Fatalf("could not parse schema digest: %v", err)
 				return
 			}
-			err = schema.GetStruct(o, schemaHash, &s)
+			err = schema.GetStruct(o, schemaDigest, &s)
 			if err != nil {
 				log.Fatalf("could not load schema: %v", err)
 				return
 			}
 			log.Printf("loaded schema: %+v", s)
 		}
-		tree(o, hash, 0, 0)
+		tree(o, digest, 0, 0)
 	},
 }
 

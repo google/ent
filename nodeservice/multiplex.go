@@ -32,9 +32,9 @@ type Inner struct {
 	ObjectGetter ObjectGetter
 }
 
-func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
+func (s Multiplex) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	for _, ss := range s.Inner {
-		b, err := ss.ObjectGetter.Get(ctx, h)
+		b, err := ss.ObjectGetter.Get(ctx, digest)
 		if err == ErrNotFound {
 			continue
 		} else if err != nil {
@@ -47,9 +47,9 @@ func (s Multiplex) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-func (s Multiplex) Has(ctx context.Context, h utils.Hash) (bool, error) {
+func (s Multiplex) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	for _, ss := range s.Inner {
-		b, err := ss.ObjectGetter.Has(ctx, h)
+		b, err := ss.ObjectGetter.Has(ctx, digest)
 		if err != nil {
 			continue
 		}
@@ -58,7 +58,7 @@ func (s Multiplex) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	return false, nil
 }
 
-func (s Multiplex) Put(ctx context.Context, b []byte) (utils.Hash, error) {
+func (s Multiplex) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	// return s.Inner[0].Put(ctx, b)
 	return "", fmt.Errorf("not implemented")
 }

@@ -50,19 +50,19 @@ func apiGetHandler(c *gin.Context) {
 	var depth uint = 10
 
 	var res api.GetResponse
-	res.Items = make(map[utils.Hash][]byte, len(req.Items))
+	res.Items = make(map[utils.Digest][]byte, len(req.Items))
 	for _, item := range req.Items {
-		accessItem.Digest = append(accessItem.Digest, string(item.Root.Hash))
+		accessItem.Digest = append(accessItem.Digest, string(item.Root.Digest))
 		blobs, err := fetchNodes(ctx, item.Root, depth)
 		if err != nil {
 			log.Errorf(ctx, "error getting blob %q: %s", item.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, string(item.Root.Hash))
+			accessItem.NotFound = append(accessItem.NotFound, string(item.Root.Digest))
 			continue
 		}
 		for _, blob := range blobs {
-			hash := utils.ComputeHash(blob)
-			accessItem.Found = append(accessItem.Found, string(hash))
-			res.Items[hash] = blob
+			digest := utils.ComputeDigest(blob)
+			accessItem.Found = append(accessItem.Found, string(digest))
+			res.Items[digest] = blob
 		}
 	}
 
@@ -95,7 +95,7 @@ func apiPutHandler(c *gin.Context) {
 	}
 
 	var res api.PutResponse
-	res.Hash = make([]utils.Hash, 0, len(req.Blobs))
+	res.Digest = make([]utils.Digest, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
 		h, err := blobStore.Put(ctx, blob)
 		accessItem.Digest = append(accessItem.Digest, string(h))
@@ -106,7 +106,7 @@ func apiPutHandler(c *gin.Context) {
 		}
 		log.Infof(ctx, "added blob: %s", h)
 		accessItem.Created = append(accessItem.Created, string(h))
-		res.Hash = append(res.Hash, h)
+		res.Digest = append(res.Digest, h)
 	}
 
 	log.Debugf(ctx, "res: %#v", res)

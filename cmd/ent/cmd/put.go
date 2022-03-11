@@ -81,10 +81,10 @@ func putData(data []byte) error {
 	}
 	nodeService := getObjectStore(remote)
 
-	localHash := utils.ComputeHash(data)
-	if exists(nodeService, localHash) {
+	localDigest := utils.ComputeDigest(data)
+	if exists(nodeService, localDigest) {
 		marker := color.GreenString("✓")
-		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localHash)), marker, remote.Name)
+		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localDigest)), marker, remote.Name)
 		return nil
 	} else {
 		_, err := nodeService.Put(context.Background(), data)
@@ -92,17 +92,17 @@ func putData(data []byte) error {
 			return fmt.Errorf("could not add object: %v", err)
 		}
 		marker := color.BlueString("↑")
-		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localHash)), marker, remote.Name)
+		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localDigest)), marker, remote.Name)
 		return nil
 	}
 }
 
-func exists(nodeService nodeservice.ObjectGetter, hash utils.Hash) bool {
-	_, err := nodeService.Get(context.Background(), hash)
+func exists(nodeService nodeservice.ObjectGetter, digest utils.Digest) bool {
+	_, err := nodeService.Get(context.Background(), digest)
 	if err == nodeservice.ErrNotFound {
 		return false
 	} else if err != nil {
-		log.Fatalf("could not check existence of %q: %v", hash, err)
+		log.Fatalf("could not check existence of %q: %v", digest, err)
 	}
 	return true
 }

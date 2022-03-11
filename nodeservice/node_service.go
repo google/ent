@@ -23,10 +23,10 @@ import (
 
 type ObjectStore interface {
 	ObjectGetter
-	Put(ctx context.Context, b []byte) (utils.Hash, error)
+	Put(ctx context.Context, b []byte) (utils.Digest, error)
 }
 
 type ObjectGetter interface {
-	Get(ctx context.Context, h utils.Hash) ([]byte, error)
-	Has(ctx context.Context, h utils.Hash) (bool, error)
+	Get(ctx context.Context, h utils.Digest) ([]byte, error)
+	Has(ctx context.Context, h utils.Digest) (bool, error)
 }

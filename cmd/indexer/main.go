@@ -96,7 +96,7 @@ func fetchCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("could not fetch URL: %v", err)
 	}
-	// Print hash to stdout.
+	// Print digest to stdout.
 	fmt.Printf("%s\n", e.Digest)
 }
 
@@ -129,9 +129,9 @@ func fetch(urlString string) (*index.IndexEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read HTTP body: %w", err)
 	}
-	h := utils.ComputeHash(data)
+	h := utils.ComputeDigest(data)
 
-	l := filepath.Join(indexFlag, index.HashToPath(h), index.EntryFilename)
+	l := filepath.Join(indexFlag, index.DigestToPath(h), index.EntryFilename)
 
 	var e index.IndexEntry
 	if _, err := os.Stat(l); err == nil {

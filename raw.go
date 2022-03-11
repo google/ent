@@ -43,7 +43,7 @@ func rawGetHandler(c *gin.Context) {
 		return
 	}
 
-	digest, err := utils.ParseHash(c.Param("digest"))
+	digest, err := utils.ParseDigest(c.Param("digest"))
 	if err != nil {
 		log.Errorf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)

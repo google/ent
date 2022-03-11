@@ -153,6 +153,6 @@ var createSchemaCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("could not create schema: %v", err)
 		}
-		log.Printf("created schema with hash %s", h)
+		log.Printf("created schema with digest %s", h)
 	},
 }

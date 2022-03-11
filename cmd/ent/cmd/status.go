@@ -26,19 +26,19 @@ import (
 )
 
 var statusCmd = &cobra.Command{
-	Use:  "status [hash]",
+	Use:  "status [digest]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hash, err := utils.ParseHash(args[0])
+		digest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse hash: %v", err)
+			log.Fatalf("could not parse digest: %v", err)
 			return
 		}
-		status(hash)
+		status(digest)
 	},
 }
 
-func status(hash utils.Hash) {
+func status(digest utils.Digest) {
 	config := readConfig()
 	s := []<-chan string{}
 	for _, remote := range config.Remotes {
@@ -47,11 +47,11 @@ func status(hash utils.Hash) {
 		go func(remote Remote, c chan<- string) {
 			objectGetter := getObjectGetter(remote)
 			marker := color.GreenString("✓")
-			_, err := objectGetter.Get(context.Background(), hash)
+			_, err := objectGetter.Get(context.Background(), digest)
 			if err != nil {
 				marker = color.RedString("✗")
 			}
-			c <- fmt.Sprintf("%s %s [%s]\n", color.YellowString(string(hash)), marker, remote.Name)
+			c <- fmt.Sprintf("%s %s [%s]\n", color.YellowString(string(digest)), marker, remote.Name)
 		}(remote, c)
 	}
 	for _, c := range s {

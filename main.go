@@ -59,7 +59,7 @@ var domainName = "localhost:8088"
 type UINode struct {
 	Kind         string
 	Value        string
-	Hash         string
+	Digest       string
 	Links        []UILink
 	URL          string
 	ParentURL    string
@@ -68,7 +68,7 @@ type UINode struct {
 
 type UILink struct {
 	Selector utils.Selector
-	Hash     string
+	Digest   string
 	Raw      bool
 	URL      string
 }
@@ -181,8 +181,8 @@ func main() {
 		router.RedirectFixedPath = false
 		router.LoadHTMLGlob("templates/*")
 
-		// Uninterpreted bytes by hash, no DAG traversal.
-		// router.GET("/api/objects/:objecthash", apiObjectsGetHandler)
+		// Uninterpreted bytes by digest, no DAG traversal.
+		// router.GET("/api/objects/:digest", apiObjectsGetHandler)
 		// router.POST("/api/objects", apiObjectsUpdateHandler)
 
 		// router.POST("/api/objects/get", apiObjectsGetHandler)
@@ -261,7 +261,7 @@ func parseHost(p string) []string {
 	}
 }
 
-func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawData []byte, node *utils.DAGNode) {
+func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawData []byte, node *utils.DAGNode) {
 	templateSegments := []UIPathSegment{}
 	for i, s := range segments {
 		templateSegments = append(templateSegments, UIPathSegment{
@@ -282,7 +282,7 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 				linkPath = append(linkPath, selector)
 				links = append(links, UILink{
 					Selector: selector,
-					Hash:     string(l.Hash),
+					Digest:   string(l.Digest),
 					URL:      path.Join("/", "web", string(root), utils.PrintPath(linkPath)),
 				})
 			}
@@ -295,7 +295,7 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 	}
 	uiNode := UINode{
 		Value:        string(rawData),
-		Hash:         string(root),
+		Digest:       string(root),
 		PathSegments: templateSegments,
 		Links:        links,
 		URL:          currentURL,
@@ -323,9 +323,9 @@ func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, err
 	log.Debugf(ctx, "fetching nodes for %v, depth %d", base, depth)
 	var nodes [][]byte
 
-	blob, err := blobStore.Get(ctx, base.Hash)
+	blob, err := blobStore.Get(ctx, base.Digest)
 	if err != nil {
-		log.Errorf(ctx, "error getting blob %q: %s", base.Hash, err)
+		log.Errorf(ctx, "error getting blob %q: %s", base.Digest, err)
 		return nil, err
 	}
 
@@ -361,7 +361,7 @@ func getAPIKey(c *gin.Context) string {
 	return c.Request.Header.Get(header)
 }
 
-func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector) (utils.Hash, error) {
+func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selector) (utils.Digest, error) {
 	if len(segments) == 0 {
 		return digest, nil
 	} else {
@@ -379,14 +379,14 @@ func traverse(ctx context.Context, digest utils.Hash, segments []utils.Selector)
 			return "", fmt.Errorf("could not traverse %s/%v: %w", digest, selector, err)
 		}
 		log.Debugf(ctx, "next: %v", next)
-		return traverse(ctx, next.Hash, segments[1:])
+		return traverse(ctx, next.Digest, segments[1:])
 	}
 }
 
 func renderHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
-	root, err := utils.ParseHash(c.Param("digest"))
+	root, err := utils.ParseDigest(c.Param("digest"))
 	if err != nil {
 		log.Errorf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
@@ -419,7 +419,7 @@ func renderHandler(c *gin.Context) {
 		Digest:  []string{string(target)},
 	})
 
-	c.Header("ent-hash", string(target))
+	c.Header("ent-digest", string(target))
 	contentType := http.DetectContentType(nodeRaw)
 	c.Data(http.StatusOK, contentType, nodeRaw)
 }

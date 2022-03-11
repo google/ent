@@ -24,22 +24,22 @@ import (
 )
 
 var printSchemaCmd = &cobra.Command{
-	Use:  "print-schema [hash]",
+	Use:  "print-schema [digest]",
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		schemaHash, err := utils.ParseHash(args[0])
+		schemaDigest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse hash: %v", err)
+			log.Fatalf("could not parse digest: %v", err)
 			return
 		}
 
 		config := readConfig()
 		o := getMultiplexObjectGetter(config)
 		if err != nil {
-			log.Fatalf("could not parse schema hash: %v", err)
+			log.Fatalf("could not parse schema digest: %v", err)
 			return
 		}
-		err = schema.GetStruct(o, schemaHash, &s)
+		err = schema.GetStruct(o, schemaDigest, &s)
 		if err != nil {
 			log.Fatalf("could not load schema: %v", err)
 			return

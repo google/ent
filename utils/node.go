@@ -16,8 +16,8 @@ const (
 )
 
 type Link struct {
-	Type uint32
-	Hash Hash
+	Type   uint32
+	Digest Digest
 }
 
 type Path []Selector

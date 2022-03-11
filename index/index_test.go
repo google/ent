@@ -21,6 +21,6 @@ import (
 	"github.com/go-playground/assert/v2"
 )
 
-func TestHashToPath(t *testing.T) {
-	assert.Equal(t, "sha256/4f/20/63/ae/a9/fc/8a/fa/12/36/17/d1/bf/9e/51/8b/58/46/95/62", HashToPath("sha256:4f2063aea9fc8afa123617d1bf9e518b58469562"))
+func TestDigestToPath(t *testing.T) {
+	assert.Equal(t, "sha256/4f/20/63/ae/a9/fc/8a/fa/12/36/17/d1/bf/9e/51/8b/58/46/95/62", DigestToPath("sha256:4f2063aea9fc8afa123617d1bf9e518b58469562"))
 }

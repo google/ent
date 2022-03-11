@@ -22,32 +22,32 @@ import (
 	"strings"
 )
 
-type Hash string
+type Digest string
 
-func ParseHash(s string) (Hash, error) {
+func ParseDigest(s string) (Digest, error) {
 	if strings.HasPrefix(s, "sha256:") {
 		rest := s[7:]
 		if len(rest) != 64 {
-			return "", fmt.Errorf("invalid hash: %q", s)
+			return "", fmt.Errorf("invalid digest: %q", s)
 		}
 		for _, c := range rest {
 			if !strings.Contains("0123456789abcdef", string(c)) {
-				return "", fmt.Errorf("invalid hash: %q", s)
+				return "", fmt.Errorf("invalid digest: %q", s)
 			}
 		}
 		_, err := hex.DecodeString(s[7:])
 		if err != nil {
 			return "", err
 		}
-		return Hash(s), nil
+		return Digest(s), nil
 	} else {
-		return "", fmt.Errorf("invalid hash: %q", s)
+		return "", fmt.Errorf("invalid digest: %q", s)
 	}
 }
 
-func ComputeHash(b []byte) Hash {
+func ComputeDigest(b []byte) Digest {
 	h := sha256.Sum256(b)
-	return Hash("sha256:" + hex.EncodeToString(h[:]))
+	return Digest("sha256:" + hex.EncodeToString(h[:]))
 }
 
 type NodeID struct {

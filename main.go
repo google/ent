@@ -319,39 +319,40 @@ func serveUI1(c *gin.Context, root utils.Hash, segments []utils.Selector, rawDat
 	}
 }
 
-func fetchNodes(ctx context.Context, root utils.Hash, depth uint) ([][]byte, error) {
-	log.Debugf(ctx, "fetching nodes for %s depth %d", root, depth)
+func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, error) {
+	log.Debugf(ctx, "fetching nodes for %v, depth %d", base, depth)
 	var nodes [][]byte
 
-	blob, err := blobStore.Get(ctx, root)
+	blob, err := blobStore.Get(ctx, base.Hash)
 	if err != nil {
-		log.Errorf(ctx, "error getting blob %q: %s", root, err)
+		log.Errorf(ctx, "error getting blob %q: %s", base.Hash, err)
 		return nil, err
 	}
 
 	nodes = append(nodes, blob)
 
-	node, err := utils.ParseDAGNode(blob)
-	if err != nil {
-		log.Errorf(ctx, "error parsing blob %q: %s", root, err)
+	// Nothing to recurse here.
+	if base.Type == utils.TypeRaw || depth == 0 {
 		return nodes, nil
 	}
 
-	if depth == 0 {
-		return nodes, nil
-	} else {
-		for _, links := range node.Links {
-			for _, link := range links {
-				nn, err := fetchNodes(ctx, link.Hash, depth-1)
-				if err != nil {
-					log.Errorf(ctx, "error fetching nodes: %s", err)
-					continue
-				}
-				nodes = append(nodes, nn...)
-			}
-		}
+	dagNode, err := utils.ParseDAGNode(blob)
+	if err != nil {
+		log.Warningf(ctx, "error parsing blob %q: %s", base, err)
 		return nodes, nil
 	}
+
+	for _, links := range dagNode.Links {
+		for _, link := range links {
+			nn, err := fetchNodes(ctx, link, depth-1)
+			if err != nil {
+				log.Errorf(ctx, "error fetching nodes: %s", err)
+				continue
+			}
+			nodes = append(nodes, nn...)
+		}
+	}
+	return nodes, nil
 }
 
 func getAPIKey(c *gin.Context) string {

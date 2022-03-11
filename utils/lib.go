@@ -51,6 +51,6 @@ func ComputeHash(b []byte) Hash {
 }
 
 type NodeID struct {
-	Root Hash
+	Root Link
 	Path Path
 }

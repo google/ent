@@ -20,12 +20,6 @@ type Link struct {
 	Hash Hash
 }
 
-// type Link struct {
-// 	// If base is empty, then it is relative to the same root.
-// 	Base Hash
-// 	Path Path
-// }
-
 type Path []Selector
 
 type Selector struct {

@@ -39,7 +39,9 @@ var (
 func (s Remote) Get(ctx context.Context, h utils.Hash) ([]byte, error) {
 	req := api.GetRequest{
 		Items: []utils.NodeID{{
-			Root: h,
+			Root: utils.Link{
+				Hash: h,
+			},
 		}},
 	}
 	reqBytes := bytes.Buffer{}
@@ -112,7 +114,9 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 func (s Remote) Has(ctx context.Context, h utils.Hash) (bool, error) {
 	req := api.GetRequest{
 		Items: []utils.NodeID{{
-			Root: h,
+			Root: utils.Link{
+				Hash: h,
+			},
 		}},
 	}
 	reqBytes := bytes.Buffer{}

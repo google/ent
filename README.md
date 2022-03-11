@@ -95,17 +95,30 @@ An Ent Server may be running locally (on port 27333 by default), or remotely.
 Some Ent Servers require the user to be authenticated in order for the user to
 read and / or write, which is performed via an API key.
 
+### JSON HTTP API
+
+The JSON API allows retrieving and creating multiple objects at once. All the
+methods below are invoked via HTTP `POST` methods.
+
+- `/api/v1/blobs/get`
+
+  Get one or more objects by their digest.
+
+- `/api/v1/blobs/put`
+
+  Put one or more objects.
+
 ### Raw HTTP API
 
-The raw HTTP API is meant to be used by existing tools without requiring any
-serialization.
+The raw HTTP API is meant to be used by existing basic tools without requiring
+any special serialization.
 
 The API supports the following HTTP operations:
 
 - `GET /raw/:digest`
 - `PUT /raw`
 
-For instance, this API can be used directly via `curl`:
+For instance, this API may be used directly from the terminal via `curl`:
 
 - Get an object by digest:
 

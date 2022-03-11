@@ -18,7 +18,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/ent/api"
@@ -31,12 +30,8 @@ func apiGetHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
 	accessItem := &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceAPI,
+		LogItem: BaseLogItem(c),
+		Source:  SourceAPI,
 	}
 	defer LogGet(ctx, accessItem)
 
@@ -78,12 +73,8 @@ func apiPutHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
 	accessItem := &LogItemPut{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceAPI,
+		LogItem: BaseLogItem(c),
+		Source:  SourceAPI,
 	}
 	defer LogPut(ctx, accessItem)
 

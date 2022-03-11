@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/ent/log"
@@ -31,12 +30,8 @@ func rawGetHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
 	accessItem := &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceRaw,
+		LogItem: BaseLogItem(c),
+		Source:  SourceRaw,
 	}
 	defer LogGet(ctx, accessItem)
 
@@ -75,12 +70,8 @@ func rawPutHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
 	accessItem := &LogItemPut{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceRaw,
+		LogItem: BaseLogItem(c),
+		Source:  SourceRaw,
 	}
 	defer LogPut(ctx, accessItem)
 

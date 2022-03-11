@@ -10,36 +10,39 @@ import (
 	"google.golang.org/api/option"
 )
 
-type LogItemGet struct {
+type LogItem struct {
 	Timestamp     time.Time
 	IP            string
 	UserAgent     string
 	RequestMethod string
 	RequestURI    string
-	APIKey        string
-	Digest        []string
-	Found         []string
-	NotFound      []string
-	Source        string
+}
+
+type LogItemGet struct {
+	LogItem
+	APIKey   string
+	Source   string
+	Digest   []string
+	Found    []string
+	NotFound []string
 }
 
 type LogItemPut struct {
-	Timestamp     time.Time
-	IP            string
-	UserAgent     string
-	RequestMethod string
-	RequestURI    string
-	APIKey        string
-	Digest        []string
-	Created       []string
-	NotCreated    []string
-	Source        string
+	LogItem
+	APIKey     string
+	Source     string
+	Digest     []string
+	Created    []string
+	NotCreated []string
 }
 
 const (
 	SourceAPI = "api"
 	SourceRaw = "raw"
 	SourceWeb = "web"
+
+	logsGetTable = "logs_get"
+	logsPutTable = "logs_put"
 )
 
 var bigqueryDataset *bigquery.Dataset
@@ -57,15 +60,42 @@ func InitBigquery(ctx context.Context, dataset string) {
 	if err != nil {
 		log.Errorf(ctx, "could not create bigquery client: %v", err)
 	}
-	bigqueryDataset = bigqueryClient.Dataset(dataset) //.Table(table)
+	bigqueryDataset = bigqueryClient.Dataset(dataset)
+
+	ensureTable(ctx, logsGetTable, LogItemGet{})
+	ensureTable(ctx, logsPutTable, LogItemPut{})
+}
+
+func ensureTable(ctx context.Context, name string, st interface{}) {
+	t, err := bigqueryDataset.Table(logsPutTable).Metadata(ctx)
+	if err != nil {
+		log.Errorf(ctx, "could not get table metadata: %v", err)
+		tableSchema, err := bigquery.InferSchema(st)
+		if err != nil {
+			log.Errorf(ctx, "could not infer schema: %v", err)
+			return
+		}
+		tableSchema = tableSchema.Relax()
+		err = bigqueryDataset.Table(name).Create(ctx, &bigquery.TableMetadata{
+			Name:   name,
+			Schema: tableSchema,
+		})
+		if err != nil {
+			log.Errorf(ctx, "could not create table: %v", err)
+			return
+		}
+		log.Infof(ctx, "created table %q", name)
+	} else {
+		log.Infof(ctx, "table %q already exists: %+v", name, t)
+	}
 }
 
 func LogGet(ctx context.Context, v *LogItemGet) {
-	logAccess(ctx, "access_logs_get", v)
+	logAccess(ctx, "logs_get", v)
 }
 
 func LogPut(ctx context.Context, v *LogItemPut) {
-	logAccess(ctx, "access_logs_put", v)
+	logAccess(ctx, "logs_put", v)
 }
 
 func logAccess(ctx context.Context, table string, v interface{}) {
@@ -79,4 +109,5 @@ func logAccess(ctx context.Context, table string, v interface{}) {
 		log.Errorf(ctx, "could not insert into bigquery: %v", err)
 		return
 	}
+	log.Debugf(ctx, "logged access: %+v", v)
 }

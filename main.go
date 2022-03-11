@@ -417,17 +417,23 @@ func renderHandler(c *gin.Context) {
 	}
 
 	LogGet(ctx, &LogItemGet{
-		Timestamp:     time.Now(),
-		IP:            c.ClientIP(),
-		UserAgent:     c.Request.UserAgent(),
-		RequestMethod: c.Request.Method,
-		RequestURI:    c.Request.RequestURI,
-		Source:        SourceWeb,
-		APIKey:        "www",
-		Digest:        []string{string(target)},
+		LogItem: BaseLogItem(c),
+		Source:  SourceWeb,
+		APIKey:  "www",
+		Digest:  []string{string(target)},
 	})
 
 	c.Header("ent-hash", string(target))
 	contentType := http.DetectContentType(nodeRaw)
 	c.Data(http.StatusOK, contentType, nodeRaw)
+}
+
+func BaseLogItem(c *gin.Context) LogItem {
+	return LogItem{
+		Timestamp:     time.Now(),
+		IP:            c.ClientIP(),
+		UserAgent:     c.Request.UserAgent(),
+		RequestMethod: c.Request.Method,
+		RequestURI:    c.Request.RequestURI,
+	}
 }

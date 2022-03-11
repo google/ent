@@ -17,6 +17,7 @@ package datastore
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
 	"cloud.google.com/go/storage"
@@ -33,19 +34,28 @@ func (s Cloud) Get(ctx context.Context, name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
 	body, err := ioutil.ReadAll(rc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading from cloud storage: %v", err)
+	}
+	err = rc.Close()
+	if err != nil {
+		return nil, fmt.Errorf("error closing reader from cloud storage: %v", err)
 	}
 	return body, nil
 }
 
 func (s Cloud) Put(ctx context.Context, name string, value []byte) error {
 	wc := s.Client.Bucket(s.BucketName).Object(name).NewWriter(ctx)
-	defer wc.Close()
 	_, err := wc.Write(value)
-	return err
+	if err != nil {
+		return fmt.Errorf("error writing to cloud storage: %v", err)
+	}
+	err = wc.Close()
+	if err != nil {
+		return fmt.Errorf("error closing writer to cloud storage: %v", err)
+	}
+	return nil
 }
 
 func (s Cloud) Has(ctx context.Context, name string) (bool, error) {

@@ -690,9 +690,9 @@ func browseBlobHandler(c *gin.Context) {
 func renderHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
-	root, err := utils.ParseHash(c.Param("root"))
+	root, err := utils.ParseHash(c.Param("digest"))
 	if err != nil {
-		log.Errorf(ctx, "could not parse root: %s", err)
+		log.Errorf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}

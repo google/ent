@@ -28,7 +28,8 @@ func (s Store) Put(ctx context.Context, b []byte) (utils.Hash, error) {
 	h := utils.ComputeHash(b)
 	err := s.Inner.Put(ctx, string(h), b)
 	if err != nil {
-		return "", err
+		// Return digest anyways, useful for logging errors.
+		return h, err
 	}
 	return h, nil
 }

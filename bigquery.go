@@ -10,31 +10,41 @@ import (
 	"google.golang.org/api/option"
 )
 
-type AccessItem struct {
-	Timestamp2    time.Time
+type LogItemGet struct {
+	Timestamp     time.Time
 	IP            string
 	UserAgent     string
 	RequestMethod string
 	RequestURI    string
-	Operation     string
 	APIKey        string
-	Requested     []string
+	Digest        []string
 	Found         []string
 	NotFound      []string
 	Source        string
 }
 
-const (
-	OperationGet = "get"
-	OperationPut = "put"
+type LogItemPut struct {
+	Timestamp     time.Time
+	IP            string
+	UserAgent     string
+	RequestMethod string
+	RequestURI    string
+	APIKey        string
+	Digest        []string
+	Created       []string
+	NotCreated    []string
+	Source        string
+}
 
+const (
 	SourceAPI = "api"
+	SourceRaw = "raw"
 	SourceWeb = "web"
 )
 
-var bigqueryTable *bigquery.Table
+var bigqueryDataset *bigquery.Dataset
 
-func InitBigquery(ctx context.Context, dataset string, table string) {
+func InitBigquery(ctx context.Context, dataset string) {
 	opts := []option.ClientOption{}
 	c, _ := ioutil.ReadFile("./credentials.json")
 	if len(c) > 0 {
@@ -47,15 +57,24 @@ func InitBigquery(ctx context.Context, dataset string, table string) {
 	if err != nil {
 		log.Errorf(ctx, "could not create bigquery client: %v", err)
 	}
-	bigqueryTable = bigqueryClient.Dataset(dataset).Table(table)
+	bigqueryDataset = bigqueryClient.Dataset(dataset) //.Table(table)
 }
 
-func LogAccess(ctx context.Context, v AccessItem) {
-	log.Debugf(ctx, "logging access: %+v", v)
-	if bigqueryTable == nil {
+func LogGet(ctx context.Context, v *LogItemGet) {
+	logAccess(ctx, "access_logs_get", v)
+}
+
+func LogPut(ctx context.Context, v *LogItemPut) {
+	logAccess(ctx, "access_logs_put", v)
+}
+
+func logAccess(ctx context.Context, table string, v interface{}) {
+	if bigqueryDataset == nil {
 		return
 	}
-	err := bigqueryTable.Inserter().Put(ctx, v)
+	t := bigqueryDataset.Table(table)
+	log.Debugf(ctx, "logging access: %+v", v)
+	err := t.Inserter().Put(ctx, v)
 	if err != nil {
 		log.Errorf(ctx, "could not insert into bigquery: %v", err)
 		return

@@ -14,7 +14,9 @@ type Memcache struct {
 func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
 	item, err := memcache.Get(ctx, name)
 	if err != nil {
-		log.Errorf(ctx, "error getting %s from memcache: %v", name, err)
+		if err != memcache.ErrCacheMiss {
+			log.Errorf(ctx, "error getting %q from memcache: %v", name, err)
+		}
 		b, err := s.Inner.Get(ctx, name)
 		if err != nil {
 			return nil, err
@@ -22,7 +24,7 @@ func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
 		go s.TrySet(ctx, name, b)
 		return b, nil
 	}
-	log.Infof(ctx, "got %s from memcache", name)
+	log.Infof(ctx, "got %q from memcache", name)
 	return item.Value, nil
 }
 
@@ -45,8 +47,8 @@ func (s Memcache) TrySet(ctx context.Context, name string, value []byte) {
 		Value: value,
 	})
 	if err != nil {
-		log.Errorf(ctx, "error adding %s to memcache: %v", name, err)
+		log.Errorf(ctx, "error adding %q to memcache: %v", name, err)
 	} else {
-		log.Infof(ctx, "added %s to memcache", name)
+		log.Infof(ctx, "added %q to memcache", name)
 	}
 }

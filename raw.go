@@ -38,14 +38,14 @@ func rawGetHandler(c *gin.Context) {
 	apiKey := getAPIKey(c)
 	accessItem.APIKey = apiKey
 	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
 	digest, err := utils.ParseDigest(c.Param("digest"))
 	if err != nil {
-		log.Errorf(ctx, "could not parse digest: %s", err)
+		log.Warningf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -56,7 +56,7 @@ func rawGetHandler(c *gin.Context) {
 
 	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
-		log.Errorf(ctx, "could not get blob %s: %s", target, err)
+		log.Warningf(ctx, "could not get blob %s: %s", target, err)
 		accessItem.NotFound = append(accessItem.NotFound, string(digest))
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -78,14 +78,14 @@ func rawPutHandler(c *gin.Context) {
 	apiKey := getAPIKey(c)
 	accessItem.APIKey = apiKey
 	if apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
 	nodeRaw, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		log.Errorf(ctx, "could not read node: %s", err)
+		log.Warningf(ctx, "could not read node: %s", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}

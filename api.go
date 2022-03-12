@@ -38,7 +38,7 @@ func apiGetHandler(c *gin.Context) {
 	apiKey := getAPIKey(c)
 	accessItem.APIKey = apiKey
 	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -55,7 +55,7 @@ func apiGetHandler(c *gin.Context) {
 		accessItem.Digest = append(accessItem.Digest, string(item.Root.Digest))
 		blobs, err := fetchNodes(ctx, item.Root, depth)
 		if err != nil {
-			log.Errorf(ctx, "error getting blob %q: %s", item.Root, err)
+			log.Warningf(ctx, "error getting blob %q: %s", item.Root, err)
 			accessItem.NotFound = append(accessItem.NotFound, string(item.Root.Digest))
 			continue
 		}
@@ -81,7 +81,7 @@ func apiPutHandler(c *gin.Context) {
 	apiKey := getAPIKey(c)
 	accessItem.APIKey = apiKey
 	if apiKey != readWriteAPIKey {
-		log.Errorf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -89,7 +89,7 @@ func apiPutHandler(c *gin.Context) {
 	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if err != nil {
-		log.Errorf(ctx, "could not parse request: %v", err)
+		log.Warningf(ctx, "could not parse request: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}

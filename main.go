@@ -325,7 +325,7 @@ func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, err
 
 	blob, err := blobStore.Get(ctx, base.Digest)
 	if err != nil {
-		log.Errorf(ctx, "error getting blob %q: %s", base.Digest, err)
+		log.Warningf(ctx, "error getting blob %q: %s", base.Digest, err)
 		return nil, err
 	}
 
@@ -346,7 +346,7 @@ func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, err
 		for _, link := range links {
 			nn, err := fetchNodes(ctx, link, depth-1)
 			if err != nil {
-				log.Errorf(ctx, "error fetching nodes: %s", err)
+				log.Warningf(ctx, "error fetching nodes: %s", err)
 				continue
 			}
 			nodes = append(nodes, nn...)
@@ -388,26 +388,26 @@ func renderHandler(c *gin.Context) {
 
 	root, err := utils.ParseDigest(c.Param("digest"))
 	if err != nil {
-		log.Errorf(ctx, "could not parse digest: %s", err)
+		log.Warningf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	path, err := utils.ParsePath(c.Param("path"))
 	if err != nil {
-		log.Errorf(ctx, "invalid path: %v", err)
+		log.Warningf(ctx, "invalid path: %v", err)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 	target, err := traverse(ctx, root, path)
 	if err != nil {
-		log.Errorf(ctx, "could not traverse: %s", err)
+		log.Warningf(ctx, "could not traverse: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 	log.Infof(ctx, "root: %v", root)
 	nodeRaw, err := blobStore.Get(ctx, target)
 	if err != nil {
-		log.Errorf(ctx, "could not get blob %s: %s", target, err)
+		log.Warningf(ctx, "could not get blob %s: %s", target, err)
 		c.Abort()
 		return
 	}

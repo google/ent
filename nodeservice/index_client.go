@@ -40,6 +40,9 @@ func (c IndexClient) Get(ctx context.Context, digest utils.Digest) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch index entry: %w", err)
 	}
+	if entryRes.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not fetch index entry: %s", entryRes.Status)
+	}
 	entry := index.IndexEntry{}
 	err = json.NewDecoder(entryRes.Body).Decode(&entry)
 	if err != nil {

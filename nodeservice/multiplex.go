@@ -36,6 +36,7 @@ func (s Multiplex) Get(ctx context.Context, digest utils.Digest) ([]byte, error)
 	for _, ss := range s.Inner {
 		b, err := ss.ObjectGetter.Get(ctx, digest)
 		if err == ErrNotFound {
+			log.Infof(ctx, "object %s not found in %s", digest, ss.Name)
 			continue
 		} else if err != nil {
 			log.Errorf(ctx, "error fetching from remote %q: %v", ss.Name, err)

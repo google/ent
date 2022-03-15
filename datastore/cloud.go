@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/ent/log"
 )
 
 // Cloud is an implementation of DataStore using a Google Cloud Storage bucket.
@@ -46,15 +47,23 @@ func (s Cloud) Get(ctx context.Context, name string) ([]byte, error) {
 }
 
 func (s Cloud) Put(ctx context.Context, name string, value []byte) error {
-	wc := s.Client.Bucket(s.BucketName).Object(name).NewWriter(ctx)
-	_, err := wc.Write(value)
-	if err != nil {
-		return fmt.Errorf("error writing to cloud storage: %v", err)
+	o := s.Client.Bucket(s.BucketName).Object(name)
+	attr, err := o.Attrs(ctx)
+	if err == storage.ErrObjectNotExist {
+		wc := o.NewWriter(ctx)
+		_, err := wc.Write(value)
+		if err != nil {
+			return fmt.Errorf("error writing to cloud storage: %v", err)
+		}
+		err = wc.Close()
+		if err != nil {
+			return fmt.Errorf("error closing writer to cloud storage: %v", err)
+		}
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("error getting attrs from cloud storage: %v", err)
 	}
-	err = wc.Close()
-	if err != nil {
-		return fmt.Errorf("error closing writer to cloud storage: %v", err)
-	}
+	log.Infof(ctx, "object %q already exists in cloud storage: %+v", name, attr)
 	return nil
 }
 

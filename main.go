@@ -325,8 +325,7 @@ func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, err
 
 	blob, err := blobStore.Get(ctx, base.Digest)
 	if err != nil {
-		log.Warningf(ctx, "error getting blob %q: %s", base.Digest, err)
-		return nil, err
+		return nil, fmt.Errorf("error getting blob %q: %w", base.Digest, err)
 	}
 
 	nodes = append(nodes, blob)

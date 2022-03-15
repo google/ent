@@ -96,10 +96,10 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	httpClient := http.Client{}
 	httpRes, err := httpClient.Do(httpReq)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error sending request: %w", err)
 	}
 	if httpRes.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error: %v", httpRes.Status)
+		return "", fmt.Errorf("error getting put response: %s", httpRes.Status)
 	}
 
 	res := api.PutResponse{}

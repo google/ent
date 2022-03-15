@@ -16,8 +16,12 @@
 package cmd
 
 import (
+	"context"
 	"log"
 
+	"github.com/google/ent/api"
+	"github.com/google/ent/datastore"
+	"github.com/google/ent/objectstore"
 	"github.com/google/ent/schema"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +32,15 @@ var createSchemaCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		config := readConfig()
 		remote := config.Remotes[0]
-		nodeService := getObjectStore(remote)
+		if remoteFlag != "" {
+			var err error
+			remote, err = getRemote(config, remoteFlag)
+			if err != nil {
+				log.Fatalf("could not use remote: %v", err)
+				return
+			}
+		}
+		nodeservice := getObjectStore(remote)
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{
@@ -149,10 +161,29 @@ var createSchemaCmd = &cobra.Command{
 				},
 			},
 		}
-		h, err := schema.PutStruct(nodeService, &s)
+		m := make(map[string][]byte)
+		oo := objectstore.Store{
+			Inner: datastore.InMemory{
+				Inner: m,
+			},
+		}
+		h, err := schema.PutStruct(oo, &s)
 		if err != nil {
 			log.Fatalf("could not create schema: %v", err)
 		}
-		log.Printf("created schema with digest %s", h)
+		log.Printf("generated %d entries", len(m))
+		req := api.PutRequest{}
+		for _, k := range m {
+			req.Blobs = append(req.Blobs, k)
+		}
+		res, err := nodeservice.PutMany(context.Background(), req)
+		if err != nil {
+			log.Fatalf("could not create schema: %v", err)
+		}
+		log.Printf("created schema for %s: %#v", h, res)
 	},
+}
+
+func init() {
+	createSchemaCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
 }

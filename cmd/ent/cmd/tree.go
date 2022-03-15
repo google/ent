@@ -110,4 +110,5 @@ var treeCmd = &cobra.Command{
 
 func init() {
 	treeCmd.PersistentFlags().StringVar(&schemaFlag, "schema", "", "digest of schema")
+	treeCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
 }

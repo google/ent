@@ -86,14 +86,14 @@ func getRemote(config Config, remoteName string) (Remote, error) {
 	return Remote{}, fmt.Errorf("remote %q not found", remoteName)
 }
 
-func getObjectStore(remote Remote) nodeservice.ObjectStore {
+func getObjectStore(remote Remote) nodeservice.Remote {
 	if remote.Write {
 		return nodeservice.Remote{
 			APIURL: remote.URL,
 			APIKey: remote.APIKey,
 		}
 	} else {
-		return nil
+		return nodeservice.Remote{}
 	}
 }
 

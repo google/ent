@@ -23,7 +23,12 @@ const (
 )
 
 type GetRequest struct {
-	Items []utils.NodeID `json:"items"`
+	Items []GetRequestItem `json:"items"`
+}
+
+type GetRequestItem struct {
+	NodeID utils.NodeID `json:"node_id"`
+	Depth  uint         `json:"depth"`
 }
 
 type GetResponse struct {

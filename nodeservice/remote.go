@@ -38,9 +38,11 @@ var (
 
 func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	req := api.GetRequest{
-		Items: []utils.NodeID{{
-			Root: utils.Link{
-				Digest: digest,
+		Items: []api.GetRequestItem{{
+			NodeID: utils.NodeID{
+				Root: utils.Link{
+					Digest: digest,
+				},
 			},
 		}},
 	}
@@ -82,40 +84,52 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	req := api.PutRequest{
 		Blobs: [][]byte{b},
 	}
-	reqBytes := bytes.Buffer{}
-	err := json.NewEncoder(&reqBytes).Encode(req)
-	if err != nil {
-		return "", fmt.Errorf("error encoding JSON request: %w", err)
-	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSPUT, &reqBytes)
+	res, err := s.PutMany(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("error creating HTTP request: %w", err)
-	}
-	httpReq.Header.Set("x-api-key", s.APIKey)
-	httpClient := http.Client{}
-	httpRes, err := httpClient.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("error sending request: %w", err)
-	}
-	if httpRes.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("error getting put response: %s", httpRes.Status)
-	}
-
-	res := api.PutResponse{}
-	err = json.NewDecoder(httpRes.Body).Decode(&res)
-	if err != nil {
-		return "", fmt.Errorf("error decoding JSON response: %w", err)
+		return "", fmt.Errorf("error getting response: %w", err)
 	}
 
 	return res.Digest[0], nil
 }
 
+func (s Remote) PutMany(ctx context.Context, req api.PutRequest) (api.PutResponse, error) {
+	reqBytes := bytes.Buffer{}
+	err := json.NewEncoder(&reqBytes).Encode(req)
+	if err != nil {
+		return api.PutResponse{}, fmt.Errorf("error encoding JSON request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSPUT, &reqBytes)
+	if err != nil {
+		return api.PutResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpClient := http.Client{}
+	httpRes, err := httpClient.Do(httpReq)
+	if err != nil {
+		return api.PutResponse{}, fmt.Errorf("error sending request: %w", err)
+	}
+	if httpRes.StatusCode != http.StatusOK {
+		return api.PutResponse{}, fmt.Errorf("error getting put response: %s", httpRes.Status)
+	}
+
+	res := api.PutResponse{}
+	err = json.NewDecoder(httpRes.Body).Decode(&res)
+	if err != nil {
+		return api.PutResponse{}, fmt.Errorf("error decoding JSON response: %w", err)
+	}
+
+	return res, nil
+}
+
 func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	req := api.GetRequest{
-		Items: []utils.NodeID{{
-			Root: utils.Link{
-				Digest: digest,
+		Items: []api.GetRequestItem{{
+			NodeID: utils.NodeID{
+				Root: utils.Link{
+					Digest: digest,
+				},
 			},
 		}},
 	}

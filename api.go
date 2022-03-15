@@ -47,16 +47,15 @@ func apiGetHandler(c *gin.Context) {
 	json.NewDecoder(c.Request.Body).Decode(&req)
 	log.Debugf(ctx, "req: %#v", req)
 
-	var depth uint = 10
-
 	var res api.GetResponse
 	res.Items = make(map[utils.Digest][]byte, len(req.Items))
 	for _, item := range req.Items {
-		accessItem.Digest = append(accessItem.Digest, string(item.Root.Digest))
-		blobs, err := fetchNodes(ctx, item.Root, depth)
+		nodeID := item.NodeID
+		accessItem.Digest = append(accessItem.Digest, string(nodeID.Root.Digest))
+		blobs, err := fetchNodes(ctx, nodeID.Root, item.Depth)
 		if err != nil {
-			log.Warningf(ctx, "error getting blob %q: %s", item.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, string(item.Root.Digest))
+			log.Warningf(ctx, "error getting blob %q: %s", nodeID.Root, err)
+			accessItem.NotFound = append(accessItem.NotFound, string(nodeID.Root.Digest))
 			continue
 		}
 		for _, blob := range blobs {
@@ -97,16 +96,31 @@ func apiPutHandler(c *gin.Context) {
 	var res api.PutResponse
 	res.Digest = make([]utils.Digest, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
-		h, err := blobStore.Put(ctx, blob)
-		accessItem.Digest = append(accessItem.Digest, string(h))
+		h := utils.ComputeDigest(blob)
+		exists, err := blobStore.Has(ctx, h)
 		if err != nil {
-			log.Errorf(ctx, "error adding blob: %s", err)
+			log.Errorf(ctx, "error checking blob existence: %s", err)
 			accessItem.NotCreated = append(accessItem.NotCreated, string(h))
 			continue
 		}
-		log.Infof(ctx, "added blob: %s", h)
-		accessItem.Created = append(accessItem.Created, string(h))
-		res.Digest = append(res.Digest, h)
+		if exists {
+			log.Infof(ctx, "blob %q already exists", h)
+			accessItem.NotCreated = append(accessItem.NotCreated, string(h))
+			continue
+		}
+		h1, err := blobStore.Put(ctx, blob)
+		if h1 != h {
+			log.Errorf(ctx, "mismatching hash, expected %s, got %s", h, h1)
+		}
+		accessItem.Digest = append(accessItem.Digest, string(h1))
+		if err != nil {
+			log.Errorf(ctx, "error adding blob: %s", err)
+			accessItem.NotCreated = append(accessItem.NotCreated, string(h1))
+			continue
+		}
+		log.Infof(ctx, "added blob: %s", h1)
+		accessItem.Created = append(accessItem.Created, string(h1))
+		res.Digest = append(res.Digest, h1)
 	}
 
 	log.Debugf(ctx, "res: %#v", res)

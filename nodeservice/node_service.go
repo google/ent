@@ -18,15 +18,27 @@ package nodeservice
 import (
 	"context"
 
+	"github.com/google/ent/api"
 	"github.com/google/ent/utils"
 )
+
+type ObjectGetter interface {
+	Get(ctx context.Context, h utils.Digest) ([]byte, error)
+	Has(ctx context.Context, h utils.Digest) (bool, error)
+}
 
 type ObjectStore interface {
 	ObjectGetter
 	Put(ctx context.Context, b []byte) (utils.Digest, error)
 }
 
-type ObjectGetter interface {
-	Get(ctx context.Context, h utils.Digest) ([]byte, error)
-	Has(ctx context.Context, h utils.Digest) (bool, error)
+type NodeGetter interface {
+	ObjectGetter
+	GetNodes(ctx context.Context, req api.GetRequest) (api.GetResponse, error)
+}
+
+type NodeService interface {
+	NodeGetter
+	ObjectStore
+	PutNodes(ctx context.Context, req api.PutRequest) (api.PutResponse, error)
 }

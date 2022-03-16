@@ -90,14 +90,28 @@ var treeCmd = &cobra.Command{
 		}
 
 		config := readConfig()
-		o := getMultiplexObjectGetter(config)
+		remote := config.Remotes[0]
+		if remoteFlag != "" {
+			var err error
+			remote, err = getRemote(config, remoteFlag)
+			if err != nil {
+				log.Fatalf("could not use remote: %v", err)
+				return
+			}
+		}
+		o := getObjectStore(remote)
+		o1 := nodeservice.Cached{
+			Cache: make(map[utils.Digest][]byte),
+			Inner: o,
+		}
+
 		if schemaFlag != "" {
 			schemaDigest, err := utils.ParseDigest(schemaFlag)
 			if err != nil {
 				log.Fatalf("could not parse schema digest: %v", err)
 				return
 			}
-			err = schema.GetStruct(o, schemaDigest, &s)
+			err = schema.GetStruct(o1, schemaDigest, &s)
 			if err != nil {
 				log.Fatalf("could not load schema: %v", err)
 				return

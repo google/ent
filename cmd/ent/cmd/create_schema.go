@@ -176,7 +176,7 @@ var createSchemaCmd = &cobra.Command{
 		for _, k := range m {
 			req.Blobs = append(req.Blobs, k)
 		}
-		res, err := nodeservice.PutMany(context.Background(), req)
+		res, err := nodeservice.PutNodes(context.Background(), req)
 		if err != nil {
 			log.Fatalf("could not create schema: %v", err)
 		}

@@ -85,7 +85,7 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 		Blobs: [][]byte{b},
 	}
 
-	res, err := s.PutMany(ctx, req)
+	res, err := s.PutNodes(ctx, req)
 	if err != nil {
 		return "", fmt.Errorf("error getting response: %w", err)
 	}
@@ -93,7 +93,37 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	return res.Digest[0], nil
 }
 
-func (s Remote) PutMany(ctx context.Context, req api.PutRequest) (api.PutResponse, error) {
+func (s Remote) GetNodes(ctx context.Context, req api.GetRequest) (api.GetResponse, error) {
+	reqBytes := bytes.Buffer{}
+	err := json.NewEncoder(&reqBytes).Encode(req)
+	if err != nil {
+		return api.GetResponse{}, fmt.Errorf("error encoding JSON request: %w", err)
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
+	if err != nil {
+		return api.GetResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
+	}
+	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpClient := http.Client{}
+	httpRes, err := httpClient.Do(httpReq)
+	if err != nil {
+		return api.GetResponse{}, fmt.Errorf("error sending request: %w", err)
+	}
+	if httpRes.StatusCode != http.StatusOK {
+		return api.GetResponse{}, fmt.Errorf("error getting get response: %s", httpRes.Status)
+	}
+
+	res := api.GetResponse{}
+	err = json.NewDecoder(httpRes.Body).Decode(&res)
+	if err != nil {
+		return api.GetResponse{}, fmt.Errorf("error decoding JSON response: %w", err)
+	}
+
+	return res, nil
+}
+
+func (s Remote) PutNodes(ctx context.Context, req api.PutRequest) (api.PutResponse, error) {
 	reqBytes := bytes.Buffer{}
 	err := json.NewEncoder(&reqBytes).Encode(req)
 	if err != nil {

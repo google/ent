@@ -33,6 +33,8 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/appengine/v2"
 )
 
@@ -215,7 +217,7 @@ func main() {
 
 	s := &http.Server{
 		Addr:           ":" + port,
-		Handler:        http.HandlerFunc(handlerRoot),
+		Handler:        h2c.NewHandler(http.HandlerFunc(handlerRoot), &http2.Server{}),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

@@ -36,6 +36,19 @@ var (
 	ErrNotFound = fmt.Errorf("not found")
 )
 
+func DoRequest(req *http.Request) (*http.Response, error) {
+	fmt.Println("h2")
+	httpClient := http.Client{
+		// Transport: &http2.Transport{
+		// 	AllowHTTP: true,
+		// 	DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+		// 		return net.Dial(network, addr)
+		// 	},
+		// },
+	}
+	return httpClient.Do(req)
+}
+
 func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
@@ -57,8 +70,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
 	httpReq.Header.Set("x-api-key", s.APIKey)
-	httpClient := http.Client{}
-	httpRes, err := httpClient.Do(httpReq)
+	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +117,7 @@ func (s Remote) GetNodes(ctx context.Context, req api.GetRequest) (api.GetRespon
 		return api.GetResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
 	}
 	httpReq.Header.Set("x-api-key", s.APIKey)
-	httpClient := http.Client{}
-	httpRes, err := httpClient.Do(httpReq)
+	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return api.GetResponse{}, fmt.Errorf("error sending request: %w", err)
 	}
@@ -135,8 +146,7 @@ func (s Remote) PutNodes(ctx context.Context, req api.PutRequest) (api.PutRespon
 		return api.PutResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
 	}
 	httpReq.Header.Set("x-api-key", s.APIKey)
-	httpClient := http.Client{}
-	httpRes, err := httpClient.Do(httpReq)
+	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return api.PutResponse{}, fmt.Errorf("error sending request: %w", err)
 	}
@@ -171,8 +181,7 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 		return false, fmt.Errorf("error creating HTTP request: %w", err)
 	}
 	httpReq.Header.Set("x-api-key", s.APIKey)
-	httpClient := http.Client{}
-	httpRes, err := httpClient.Do(httpReq)
+	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		log.Errorf(ctx, "error sending request: %v", err)
 	}

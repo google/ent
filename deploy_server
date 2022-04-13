@@ -5,4 +5,17 @@ set -o nounset
 set -o xtrace
 set -o pipefail
 
-gcloud app deploy
+export PROJECT=oak-ci
+export DOCKER_IMAGE=europe-docker.pkg.dev/$PROJECT/ent/ent-server:latest
+
+export CGO_ENABLED=0
+
+go build .
+docker build . --tag=$DOCKER_IMAGE
+docker push $DOCKER_IMAGE
+gcloud run deploy ent-server \
+  --project=$PROJECT \
+  --region=europe-west1 \
+  --image=$DOCKER_IMAGE \
+  --use-http2 \
+  --allow-unauthenticated

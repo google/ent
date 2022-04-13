@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o xtrace
+set -o pipefail
+
+export CGO_ENABLED=0
+go build ./cmd/ent

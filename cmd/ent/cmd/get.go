@@ -20,18 +20,17 @@ import (
 	"log"
 	"os"
 
+	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
 
-func get(digest utils.Digest) {
+var urlFlag string
+
+func get(digest utils.Digest) ([]byte, error) {
 	config := readConfig()
 	objectGetter := getMultiplexObjectGetter(config)
-	object, err := objectGetter.Get(context.Background(), digest)
-	if err != nil {
-		log.Fatalf("could not download target: %s", err)
-	}
-	os.Stdout.Write(object)
+	return objectGetter.Get(context.Background(), digest)
 }
 
 var getCmd = &cobra.Command{
@@ -43,6 +42,22 @@ var getCmd = &cobra.Command{
 			log.Fatalf("could not parse digest: %v", err)
 			return
 		}
-		get(digest)
+		var object []byte
+		if urlFlag != "" {
+			// If a URL is specified, just fetch the object directly from there and ensure that it
+			// has the correct digest.
+			object, err = nodeservice.DownloadFromURL(digest, urlFlag)
+		} else {
+			object, err = get(digest)
+		}
+		if err != nil {
+			log.Fatalf("could not get object: %v", err)
+			return
+		}
+		os.Stdout.Write(object)
 	},
+}
+
+func init() {
+	getCmd.PersistentFlags().StringVar(&urlFlag, "url", "", "optional URL of the node to fetch")
 }

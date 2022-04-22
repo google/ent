@@ -49,21 +49,28 @@ func (c IndexClient) Get(ctx context.Context, digest utils.Digest) ([]byte, erro
 		return nil, fmt.Errorf("could not parse index entry as JSON: %w", err)
 	}
 	log.Printf("parsed entry: %+v", entry)
-	targetRes, err := http.Get(entry.URLS[0])
+	return DownloadFromURL(digest, entry.URLS[0])
+}
+
+func (c IndexClient) Has(ctx context.Context, h utils.Digest) (bool, error) {
+	return false, nil
+}
+
+func DownloadFromURL(digest utils.Digest, url string) ([]byte, error) {
+	targetRes, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch target: %w", err)
+		return nil, fmt.Errorf("could not fetch target: %v", err)
+	}
+	if targetRes.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not fetch target: %s", targetRes.Status)
 	}
 	target, err := ioutil.ReadAll(targetRes.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not download target: %w", err)
+		return nil, fmt.Errorf("could not download target: %v", err)
 	}
 	targetDigest := utils.ComputeDigest(target)
 	if targetDigest != digest {
 		return nil, fmt.Errorf("digest mismatch, wanted: %q, got %q", digest, targetDigest)
 	}
 	return target, nil
-}
-
-func (c IndexClient) Has(ctx context.Context, h utils.Digest) (bool, error) {
-	return false, nil
 }

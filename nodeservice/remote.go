@@ -37,7 +37,6 @@ var (
 )
 
 func DoRequest(req *http.Request) (*http.Response, error) {
-	fmt.Println("h2")
 	httpClient := http.Client{
 		// Transport: &http2.Transport{
 		// 	AllowHTTP: true,

@@ -10,13 +10,12 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
-	github.com/go-openapi/runtime v0.23.3 // indirect
+	github.com/go-openapi/runtime v0.23.3
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/sigstore/cosign v1.7.2
 	github.com/sigstore/rekor v0.6.0
-	github.com/sigstore/sigstore v1.2.1-0.20220401110139-0e610e39782f // indirect
+	github.com/sigstore/sigstore v1.2.1-0.20220401110139-0e610e39782f
 	github.com/spf13/cobra v1.4.0
-	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/ugorji/go v1.2.7 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/net v0.0.0-20220421235706-1d1ef9303861

@@ -3,25 +3,23 @@ module github.com/google/ent
 go 1.15
 
 require (
-	cloud.google.com/go/bigquery v1.28.0 // indirect
-	cloud.google.com/go/firestore v1.1.0
-	cloud.google.com/go/storage v1.20.0
-	github.com/BurntSushi/toml v0.3.1
-	github.com/fatih/color v1.12.0
+	cloud.google.com/go/bigquery v1.31.0
+	cloud.google.com/go/firestore v1.6.1
+	cloud.google.com/go/storage v1.22.0
+	github.com/BurntSushi/toml v1.1.0
+	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.7
+	github.com/go-openapi/runtime v0.23.3 // indirect
 	github.com/go-playground/assert/v2 v2.0.1
-	github.com/go-playground/validator/v10 v10.10.0 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/spf13/cobra v1.2.1
-	github.com/ugorji/go v1.2.6 // indirect
-	golang.org/x/crypto v0.0.0-20220209195652-db638375bc3a // indirect
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
-	google.golang.org/api v0.68.0
+	github.com/sigstore/cosign v1.7.2
+	github.com/sigstore/rekor v0.6.0
+	github.com/sigstore/sigstore v1.2.1-0.20220401110139-0e610e39782f // indirect
+	github.com/spf13/cobra v1.4.0
+	github.com/stretchr/testify v1.7.1 // indirect
+	github.com/ugorji/go v1.2.7 // indirect
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
+	golang.org/x/net v0.0.0-20220421235706-1d1ef9303861
+	google.golang.org/api v0.75.0
 	google.golang.org/appengine/v2 v2.0.2-0.20220105214307-da036ec7cbbf
-	google.golang.org/genproto v0.0.0-20220208230804-65c12eb4c068 // indirect
 )

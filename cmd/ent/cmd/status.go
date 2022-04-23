@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -130,13 +131,14 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, err = e.HashedRekordObj.Data.MarshalBinary()
+		data, err = hex.DecodeString(*e.HashedRekordObj.Data.Hash.Value)
 		if err != nil {
 			return nil, err
 		}
 	default:
 		return nil, errors.New("unexpected tlog entry type")
 	}
+	log.Printf("data: (%d) %v", len(data), data)
 
 	publicKey, err := base64.StdEncoding.DecodeString(string(publicKeyB64))
 	if err != nil {
@@ -168,6 +170,8 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 		if err != nil {
 			// TODO: Actually check the signature.
 			log.Printf("could not verify signature: %v", err)
+		} else {
+			log.Printf("verified signature")
 		}
 		log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
 		log.Printf("cert OIDC subject: %q", signature.CertSubject(c))

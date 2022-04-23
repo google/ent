@@ -39,6 +39,7 @@ import (
 	hashedrekord "github.com/sigstore/rekor/pkg/types/hashedrekord/v0.0.1"
 	rekord "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
+	"github.com/sigstore/sigstore/pkg/signature/options"
 	"github.com/spf13/cobra"
 )
 
@@ -114,36 +115,28 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	var publicKeyB64 []byte
-	var data []byte
+	var (
+		publicKey []byte
+		data      []byte
+		sig       []byte
+	)
 	switch e := eimpl.(type) {
 	case *rekord.V001Entry:
-		publicKeyB64, err = e.RekordObj.Signature.PublicKey.Content.MarshalText()
-		if err != nil {
-			return nil, err
-		}
-		data, err = e.RekordObj.Data.Content.MarshalText()
-		if err != nil {
-			return nil, err
-		}
+		publicKey = e.RekordObj.Signature.PublicKey.Content
+		data = e.RekordObj.Data.Content
+		sig = e.RekordObj.Signature.Content
 	case *hashedrekord.V001Entry:
-		publicKeyB64, err = e.HashedRekordObj.Signature.PublicKey.Content.MarshalText()
-		if err != nil {
-			return nil, err
-		}
+		publicKey = e.HashedRekordObj.Signature.PublicKey.Content
 		data, err = hex.DecodeString(*e.HashedRekordObj.Data.Hash.Value)
 		if err != nil {
 			return nil, err
 		}
+		sig = e.HashedRekordObj.Signature.Content
 	default:
 		return nil, errors.New("unexpected tlog entry type")
 	}
-	log.Printf("data: (%d) %v", len(data), data)
-
-	publicKey, err := base64.StdEncoding.DecodeString(string(publicKeyB64))
-	if err != nil {
-		return nil, err
-	}
+	// log.Printf("data: (%d) %v", len(data), data)
+	// log.Printf("sig: (%d) %v", len(sig), sig)
 
 	certs, err := cryptoutils.UnmarshalCertificatesFromPEM(publicKey)
 	if err != nil {
@@ -166,13 +159,12 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 			log.Printf("could not validate cert: %v", err)
 			continue
 		}
-		err = verifier.VerifySignature(bytes.NewReader([]byte(e.Body.(string))), bytes.NewReader(data))
+		err = verifier.VerifySignature(bytes.NewReader(sig), nil, options.WithDigest(data))
 		if err != nil {
-			// TODO: Actually check the signature.
 			log.Printf("could not verify signature: %v", err)
-		} else {
-			log.Printf("verified signature")
+			continue
 		}
+		log.Printf("verified signature")
 		log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
 		log.Printf("cert OIDC subject: %q", signature.CertSubject(c))
 	}

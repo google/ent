@@ -12,6 +12,7 @@ require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-openapi/runtime v0.23.3
 	github.com/go-playground/assert/v2 v2.0.1
+	github.com/in-toto/in-toto-golang v0.3.4-0.20211211042327-af1f9fb822bf // indirect
 	github.com/sigstore/cosign v1.7.2
 	github.com/sigstore/rekor v0.6.0
 	github.com/sigstore/sigstore v1.2.1-0.20220401110139-0e610e39782f

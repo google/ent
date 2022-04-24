@@ -18,9 +18,12 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log"
@@ -28,6 +31,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/go-openapi/runtime"
 	"github.com/google/ent/utils"
+	"github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/sigstore/cosign/cmd/cosign/cli/fulcio"
 	"github.com/sigstore/cosign/pkg/cosign"
 	"github.com/sigstore/cosign/pkg/signature"
@@ -37,6 +41,7 @@ import (
 	"github.com/sigstore/rekor/pkg/generated/models"
 	"github.com/sigstore/rekor/pkg/types"
 	hashedrekord "github.com/sigstore/rekor/pkg/types/hashedrekord/v0.0.1"
+	intoto "github.com/sigstore/rekor/pkg/types/intoto/v0.0.1"
 	rekord "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature/options"
@@ -70,7 +75,7 @@ var statusCmd = &cobra.Command{
 // To sign an entry locally:
 //
 // COSIGN_EXPERIMENTAL=1 cosign sign-blob ./README.md
-func rekorStatus(digest utils.Digest, blob []byte) {
+func rekorStatus(digest utils.Digest) {
 	rc, err := rekor.GetRekorClient(defaultRekorAddr, rekor.WithUserAgent("ent"))
 	if err != nil {
 		log.Fatalf("could not create rekor client: %v", err)
@@ -93,7 +98,7 @@ func rekorStatus(digest utils.Digest, blob []byte) {
 			return
 		}
 		en := e.Payload[id]
-		_, err = certs(&en, blob)
+		_, err = certs(&en)
 		if err != nil {
 			log.Fatalf("could not get certs from rekor entry %q: %v", id, err)
 			return
@@ -101,7 +106,7 @@ func rekorStatus(digest utils.Digest, blob []byte) {
 	}
 }
 
-func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
+func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 	log.Printf("log entry %q", *e.LogID)
 	b, err := base64.StdEncoding.DecodeString(e.Body.(string))
 	if err != nil {
@@ -115,58 +120,88 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	// log.Printf("entry: %+v", e)
+	// log.Printf("entry: %+v", eimpl)
 	var (
 		publicKey []byte
 		data      []byte
 		sig       []byte
 	)
-	switch e := eimpl.(type) {
+	switch ei := eimpl.(type) {
 	case *rekord.V001Entry:
-		publicKey = e.RekordObj.Signature.PublicKey.Content
-		data = e.RekordObj.Data.Content
-		sig = e.RekordObj.Signature.Content
+		publicKey = ei.RekordObj.Signature.PublicKey.Content
+		data = ei.RekordObj.Data.Content
+		sig = ei.RekordObj.Signature.Content
 	case *hashedrekord.V001Entry:
-		publicKey = e.HashedRekordObj.Signature.PublicKey.Content
-		data, err = hex.DecodeString(*e.HashedRekordObj.Data.Hash.Value)
+		publicKey = ei.HashedRekordObj.Signature.PublicKey.Content
+		data, err = hex.DecodeString(*ei.HashedRekordObj.Data.Hash.Value)
 		if err != nil {
 			return nil, err
 		}
-		sig = e.HashedRekordObj.Signature.Content
+		sig = ei.HashedRekordObj.Signature.Content
+	case *intoto.V001Entry:
+		var i in_toto.ProvenanceStatement
+		attestationBytes, err := base64.StdEncoding.DecodeString(string(e.Attestation.Data))
+		if err != nil {
+			return nil, err
+		}
+		err = json.NewDecoder(bytes.NewReader(attestationBytes)).Decode(&i)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("intoto attestation %+v", i)
+		publicKey = *ei.IntotoObj.PublicKey
+		// TODO
 	default:
 		return nil, errors.New("unexpected tlog entry type")
 	}
 	// log.Printf("data: (%d) %v", len(data), data)
 	// log.Printf("sig: (%d) %v", len(sig), sig)
+	// log.Printf("public key: (%d) %v", len(publicKey), string(publicKey))
 
 	certs, err := cryptoutils.UnmarshalCertificatesFromPEM(publicKey)
 	if err != nil {
-		return nil, err
-	}
-
-	if len(certs) == 0 {
-		return nil, errors.New("no certs found in pem tlog")
-	}
-
-	co := &cosign.CheckOpts{
-		RootCerts: fulcio.GetRoots(),
-		// CertOidcIssuer: "https://token.actions.githubusercontent.com",
-		// CertOidcIssuer: "https://github.com/login/oauth",
-		// CertOidcIssuer: "https://accounts.google.com",
-	}
-	for _, c := range certs {
-		verifier, err := cosign.ValidateAndUnpackCert(c, co)
+		block, _ := pem.Decode(publicKey)
+		pk, err := x509.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
-			log.Printf("could not validate cert: %v", err)
-			continue
+			return nil, fmt.Errorf("could not parse public key: %v", err)
 		}
-		err = verifier.VerifySignature(bytes.NewReader(sig), nil, options.WithDigest(data))
-		if err != nil {
-			log.Printf("could not verify signature: %v", err)
-			continue
+		log.Printf("public key: %+v", pk)
+		switch pk := pk.(type) {
+		case *ecdsa.PublicKey:
+			ok := ecdsa.VerifyASN1(pk, data, sig)
+			log.Printf("ecdsa verification: %v", ok)
+		default:
+			return nil, fmt.Errorf("unexpected public key type: %T", pk)
 		}
-		log.Printf("verified signature")
-		log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
-		log.Printf("cert OIDC subject: %q", signature.CertSubject(c))
+		return nil, nil
+	} else {
+
+		if len(certs) == 0 {
+			return nil, errors.New("no certs found in pem tlog")
+		}
+
+		co := &cosign.CheckOpts{
+			RootCerts: fulcio.GetRoots(),
+			// CertOidcIssuer: "https://token.actions.githubusercontent.com",
+			// CertOidcIssuer: "https://github.com/login/oauth",
+			// CertOidcIssuer: "https://accounts.google.com",
+		}
+		for _, c := range certs {
+			verifier, err := cosign.ValidateAndUnpackCert(c, co)
+			if err != nil {
+				log.Printf("could not validate cert: %v", err)
+				continue
+			}
+			err = verifier.VerifySignature(bytes.NewReader(sig), nil, options.WithDigest(data))
+			if err != nil {
+				log.Printf("could not verify signature: %v", err)
+				continue
+			}
+			log.Printf("verified signature")
+			log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
+			log.Printf("cert OIDC subject: %q", signature.CertSubject(c))
+		}
 	}
 
 	return certs, err
@@ -174,7 +209,6 @@ func certs(e *models.LogEntryAnon, blob []byte) ([]*x509.Certificate, error) {
 
 func status(digest utils.Digest) {
 	config := readConfig()
-	blob := []byte{}
 	s := []<-chan string{}
 	for _, remote := range config.Remotes {
 		c := make(chan string)
@@ -182,9 +216,7 @@ func status(digest utils.Digest) {
 		go func(remote Remote, c chan<- string) {
 			objectGetter := getObjectGetter(remote)
 			marker := color.GreenString("✓")
-			var err error
-			// Not really thread safe, but we don't care.
-			blob, err = objectGetter.Get(context.Background(), digest)
+			_, err := objectGetter.Get(context.Background(), digest)
 			if err != nil {
 				marker = color.RedString("✗")
 			}
@@ -194,5 +226,5 @@ func status(digest utils.Digest) {
 	for _, c := range s {
 		fmt.Printf(<-c)
 	}
-	rekorStatus(digest, blob)
+	rekorStatus(digest)
 }

@@ -196,8 +196,8 @@ func main() {
 		router.GET("/raw/:digest", rawGetHandler)
 		router.PUT("/raw", rawPutHandler)
 
-		router.GET("/web/:digest", webGetHandler)
-		router.GET("/web/:digest/*path", webGetHandler)
+		router.GET("/browse/:digest", webGetHandler)
+		router.GET("/browse/:digest/*path", webGetHandler)
 
 		router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
@@ -234,13 +234,13 @@ func main() {
 }
 
 func handlerRoot(w http.ResponseWriter, r *http.Request) {
-	// hostSegments := hostSegments(r.Host)
-	// log.Printf("host segments: %#v", hostSegments)
-	// if len(hostSegments) == 0 {
-	handlerBrowse.ServeHTTP(w, r)
-	// } else {
-	// handlerWWW.ServeHTTP(w, r)
-	// }
+	hostSegments := hostSegments(r.Host)
+	log.Infof(r.Context(), "host segments: %#v", hostSegments)
+	if len(hostSegments) == 0 {
+		handlerBrowse.ServeHTTP(w, r)
+	} else {
+		handlerWWW.ServeHTTP(w, r)
+	}
 }
 
 func indexHandler(c *gin.Context) {
@@ -387,7 +387,22 @@ func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selecto
 func renderHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
-	root, err := utils.ParseDigest(c.Param("digest"))
+	hostSegments := hostSegments(c.Request.Host)
+	if len(hostSegments) != 3 {
+		log.Warningf(ctx, "invalid host segments: %#v", hostSegments)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	if hostSegments[len(hostSegments)-1] != wwwSegment {
+		log.Warningf(ctx, "invalid host segments: %#v", hostSegments)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	digest := strings.Replace(hostSegments[0]+hostSegments[1], "-", ":", 1)
+	log.Infof(ctx, "digest: %s", digest)
+
+	root, err := utils.ParseDigest(string(digest))
 	if err != nil {
 		log.Warningf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)

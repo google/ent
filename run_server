@@ -6,5 +6,6 @@ set -o xtrace
 set -o pipefail
 
 export BIGQUERY_DATASET=access_logs
+export DOMAIN_NAME=localhost:27333
 
 go run *.go

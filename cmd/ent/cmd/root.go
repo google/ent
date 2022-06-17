@@ -139,4 +139,5 @@ func init() {
 	rootCmd.AddCommand(treeCmd)
 	rootCmd.AddCommand(createSchemaCmd)
 	rootCmd.AddCommand(printSchemaCmd)
+	rootCmd.AddCommand(uploadCmd)
 }

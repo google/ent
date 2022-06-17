@@ -112,6 +112,7 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("log entry %s", string(b))
 	pe, err := models.UnmarshalProposedEntry(bytes.NewReader(b), runtime.JSONConsumer())
 	if err != nil {
 		return nil, err

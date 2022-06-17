@@ -269,7 +269,7 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 		templateSegments = append(templateSegments, UIPathSegment{
 			Name:     utils.PrintSelector(s),
 			Selector: s,
-			URL:      path.Join("/", "web", string(root), utils.PrintPath(segments[0:i+1])),
+			URL:      path.Join("/", "browse", string(root), utils.PrintPath(segments[0:i+1])),
 		})
 	}
 	links := []UILink{}
@@ -285,15 +285,15 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 				links = append(links, UILink{
 					Selector: selector,
 					Digest:   string(l.Digest),
-					URL:      path.Join("/", "web", string(root), utils.PrintPath(linkPath)),
+					URL:      path.Join("/", "browse", string(root), utils.PrintPath(linkPath)),
 				})
 			}
 		}
 	}
-	currentURL := path.Join("/", "web", string(root))
+	currentURL := path.Join("/", "browse", string(root))
 	parentURL := ""
 	if len(segments) > 0 {
-		parentURL = path.Join("/", "web", string(root), utils.PrintPath(segments[0:len(segments)-1]))
+		parentURL = path.Join("/", "browse", string(root), utils.PrintPath(segments[0:len(segments)-1]))
 	}
 	uiNode := UINode{
 		Value:        string(rawData),

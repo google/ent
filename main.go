@@ -238,10 +238,10 @@ func main() {
 func handlerRoot(w http.ResponseWriter, r *http.Request) {
 	hostSegments := hostSegments(r.Host)
 	log.Infof(r.Context(), "host segments: %#v", hostSegments)
-	if len(hostSegments) == 0 {
-		handlerBrowse.ServeHTTP(w, r)
-	} else {
+	if len(hostSegments) == 2 {
 		handlerWWW.ServeHTTP(w, r)
+	} else {
+		handlerBrowse.ServeHTTP(w, r)
 	}
 }
 

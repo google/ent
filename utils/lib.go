@@ -17,6 +17,7 @@ package utils
 
 import (
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -53,4 +54,12 @@ func ComputeDigest(b []byte) Digest {
 type NodeID struct {
 	Root Link
 	Path Path
+}
+
+func ToBase32(d Digest) (string, error) {
+	h, err := hex.DecodeString(string(d[7:]))
+	if err != nil {
+		return "", fmt.Errorf("invalid digest: %q", d)
+	}
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h), nil
 }

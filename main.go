@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"encoding/base32"
 	"fmt"
 	"net/http"
 	"os"
@@ -66,6 +67,7 @@ type UINode struct {
 	URL          string
 	ParentURL    string
 	PathSegments []UIPathSegment
+	WWWURL       string
 }
 
 type UILink struct {
@@ -295,6 +297,14 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 	if len(segments) > 0 {
 		parentURL = path.Join("/", "browse", string(root), utils.PrintPath(segments[0:len(segments)-1]))
 	}
+
+	base32digest, err := utils.ToBase32(root)
+	if err != nil {
+		log.Errorf(c, "error encoding digest to base32: %v", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
 	uiNode := UINode{
 		Value:        string(rawData),
 		Digest:       string(root),
@@ -302,6 +312,7 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 		Links:        links,
 		URL:          currentURL,
 		ParentURL:    parentURL,
+		WWWURL:       fmt.Sprintf("http://%s.%s.%s/", base32digest, wwwSegment, domainName),
 	}
 	if node != nil {
 		c.HTML(http.StatusOK, "browse.tmpl", gin.H{
@@ -388,7 +399,7 @@ func renderHandler(c *gin.Context) {
 	ctx := appengine.NewContext(c.Request)
 
 	hostSegments := hostSegments(c.Request.Host)
-	if len(hostSegments) != 3 {
+	if len(hostSegments) != 2 {
 		log.Warningf(ctx, "invalid host segments: %#v", hostSegments)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -399,7 +410,13 @@ func renderHandler(c *gin.Context) {
 		return
 	}
 
-	digest := strings.Replace(hostSegments[0]+hostSegments[1], "-", ":", 1)
+	digestBytes, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(hostSegments[0]))
+	if err != nil {
+		log.Warningf(ctx, "could not base32 decode host segment: %v: %v", hostSegments[0], err)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+	digest := fmt.Sprintf("sha256:%x", digestBytes)
 	log.Infof(ctx, "digest: %s", digest)
 
 	root, err := utils.ParseDigest(string(digest))

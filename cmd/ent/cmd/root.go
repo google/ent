@@ -133,6 +133,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.AddCommand(digestCmd)
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(putCmd)
 	rootCmd.AddCommand(statusCmd)

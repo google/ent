@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
@@ -35,12 +36,12 @@ var digestCmd = &cobra.Command{
 			filename = args[0]
 		}
 		if filename == "" {
-			err := digestStdin()
+			_, err := digestStdin()
 			if err != nil {
 				log.Fatal(err)
 			}
 		} else {
-			err := digestFile(filename)
+			_, err := digestFileOrDir(filename)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -49,24 +50,75 @@ var digestCmd = &cobra.Command{
 	},
 }
 
-func digestStdin() error {
+func digestStdin() (utils.Digest, error) {
 	data, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		return fmt.Errorf("could not read stdin: %v", err)
+		return "", fmt.Errorf("could not read stdin: %v", err)
 	}
 	return digestData(data)
 }
 
-func digestFile(filename string) error {
+func digestFileOrDir(filename string) (utils.Digest, error) {
+	info, err := os.Stat(filename)
+	if err != nil {
+		return "", fmt.Errorf("could not stat %s: %v", filename, err)
+	}
+	if info.IsDir() {
+		return digestDir(filename)
+	} else {
+		return digestFile(filename)
+	}
+}
+
+// TODO: Also return schema in parallel.
+func digestDir(dirname string) (utils.Digest, error) {
+	files, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		return "", fmt.Errorf("could not read directory %s: %v", dirname, err)
+	}
+	links := make(map[uint][]utils.Link)
+	kinds := make([]schema.Kind, 0, len(files))
+	for i, file := range files {
+		digest, err := digestFileOrDir(dirname + "/" + file.Name())
+		if err != nil {
+			return "", err
+		}
+		links[uint(i)] = []utils.Link{{Digest: digest}}
+		kinds = append(kinds, schema.Kind{
+			KindID: uint32(i),
+			Name:   file.Name(),
+		})
+	}
+	// schema := schema.Schema{
+	// 	Kinds: kinds,
+	// }
+	// fmt.Printf("schema: %v\n", schema)
+	dagNode := utils.DAGNode{
+		Links: links,
+	}
+	fmt.Printf("DAG node: %v\n", dagNode)
+	serialized, err := utils.SerializeDAGNode(&dagNode)
+	if err != nil {
+		return "", err
+	}
+	digest := utils.ComputeDigest(serialized)
+	fmt.Printf("%s", formatDigest(digest, dirname+"/"))
+	return digest, nil
+}
+
+func digestFile(filename string) (utils.Digest, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("could not read file %q: %v", filename, err)
+		return "", fmt.Errorf("could not read file %q: %v", filename, err)
 	}
+	fmt.Printf("%s", formatDigest(utils.ComputeDigest(data), filename))
 	return digestData(data)
 }
 
-func digestData(data []byte) error {
-	localDigest := utils.ComputeDigest(data)
-	fmt.Printf("%s\n", color.YellowString(string(localDigest)))
-	return nil
+func digestData(data []byte) (utils.Digest, error) {
+	return utils.ComputeDigest(data), nil
+}
+
+func formatDigest(digest utils.Digest, name string) string {
+	return fmt.Sprintf("%s %s\n", color.YellowString(string(digest)), name)
 }

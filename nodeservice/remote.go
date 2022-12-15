@@ -83,7 +83,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 		return nil, fmt.Errorf("error decoding JSON response: %w", err)
 	}
 
-	item, ok := res.Items[digest]
+	item, ok := res.Items[digest.String()]
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -98,7 +98,10 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 
 	res, err := s.PutNodes(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("error getting response: %w", err)
+		return utils.Digest{}, fmt.Errorf("error getting response: %w", err)
+	}
+	if len(res.Digest) != 1 {
+		return utils.Digest{}, fmt.Errorf("expected 1 digest, got %d", len(res.Digest))
 	}
 
 	return res.Digest[0], nil

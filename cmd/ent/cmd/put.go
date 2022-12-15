@@ -18,9 +18,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 
 	"github.com/fatih/color"
 	"github.com/google/ent/nodeservice"
@@ -44,7 +42,7 @@ var putCmd = &cobra.Command{
 				log.Fatal(err)
 			}
 		} else {
-			err := putFile(filename)
+			_, err := traverseFileOrDir(filename, put)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -54,22 +52,23 @@ var putCmd = &cobra.Command{
 }
 
 func putStdin() error {
-	data, err := ioutil.ReadAll(os.Stdin)
-	if err != nil {
-		return fmt.Errorf("could not read stdin: %v", err)
-	}
-	return putData(data)
+	// data, err := ioutil.ReadAll(os.Stdin)
+	// if err != nil {
+	// 	return fmt.Errorf("could not read stdin: %v", err)
+	// }
+	// return putData(data)
+	return nil
 }
 
-func putFile(filename string) error {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("could not read file %q: %v", filename, err)
-	}
-	return putData(data)
-}
+// func putFile(filename string) error {
+// 	data, err := os.ReadFile(filename)
+// 	if err != nil {
+// 		return fmt.Errorf("could not read file %q: %v", filename, err)
+// 	}
+// 	return putData(data)
+// }
 
-func putData(data []byte) error {
+func put(bytes []byte, digest utils.Digest, name string) error {
 	config := readConfig()
 	remote := config.Remotes[0]
 	if remoteFlag != "" {
@@ -81,18 +80,18 @@ func putData(data []byte) error {
 	}
 	nodeService := getObjectStore(remote)
 
-	localDigest := utils.ComputeDigest(data)
-	if exists(nodeService, localDigest) {
+	if exists(nodeService, digest) {
 		marker := color.GreenString("✓")
-		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localDigest)), marker, remote.Name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
 		return nil
 	} else {
-		_, err := nodeService.Put(context.Background(), data)
+		_, err := nodeService.Put(context.Background(), bytes)
 		if err != nil {
-			return fmt.Errorf("could not add object: %v", err)
+			log.Printf("could not put object: %v", err)
+			return fmt.Errorf("could not put object: %v", err)
 		}
 		marker := color.BlueString("↑")
-		fmt.Printf("%s %s [%s]\n", color.YellowString(string(localDigest)), marker, remote.Name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
 		return nil
 	}
 }

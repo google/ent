@@ -83,19 +83,11 @@ func TestGetStruct(t *testing.T) {
 		t.Fatalf("failed to put string: %v", err)
 	}
 	node := &utils.DAGNode{
-		Links: map[uint][]utils.Link{
-			0: {
-				{Digest: uintFieldDigest},
-			},
-			1: {
-				{Digest: stringFieldDigest},
-			},
-			2: {
-				{Digest: uintFieldDigest},
-			},
-			3: {
-				{Digest: uintFieldDigest},
-			},
+		Links: []utils.Link{
+			{Digest: uintFieldDigest},
+			{Digest: stringFieldDigest},
+			{Digest: uintFieldDigest},
+			{Digest: uintFieldDigest},
 		},
 	}
 	nodeBytes, err := utils.SerializeDAGNode(node)
@@ -129,6 +121,7 @@ type T struct {
 	D []string `ent:"3"`
 	E U        `ent:"4"`
 	F []U      `ent:"5"`
+	G uint64   `ent:"6"`
 }
 
 type U struct {
@@ -164,6 +157,7 @@ func TestRoundTrip(t *testing.T) {
 					B: "monde",
 				},
 			},
+			G: 123456789,
 		},
 	}
 

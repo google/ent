@@ -99,7 +99,7 @@ func upload(planFilename string) error {
 	nodeService := getObjectStore(remote)
 
 	dagNode := utils.DAGNode{
-		Links: map[uint][]utils.Link{},
+		Links: []utils.Link{},
 	}
 
 	for _, entry := range plan.Entries {
@@ -112,7 +112,7 @@ func upload(planFilename string) error {
 		if err != nil {
 			return fmt.Errorf("could not put file: %v", err)
 		}
-		dagNode.Links[entry.FieldID] = append(dagNode.Links[entry.FieldID], utils.Link{
+		dagNode.Links = append(dagNode.Links, utils.Link{
 			Type:   utils.TypeRaw,
 			Digest: digest,
 		})

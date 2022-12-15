@@ -61,5 +61,5 @@ func (s Multiplex) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 
 func (s Multiplex) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	// return s.Inner[0].Put(ctx, b)
-	return "", fmt.Errorf("not implemented")
+	return utils.Digest{}, fmt.Errorf("not implemented")
 }

@@ -16,6 +16,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 
@@ -48,20 +49,21 @@ func apiGetHandler(c *gin.Context) {
 	log.Debugf(ctx, "req: %#v", req)
 
 	var res api.GetResponse
-	res.Items = make(map[utils.Digest][]byte, len(req.Items))
+	res.Items = make(map[string][]byte, len(req.Items))
 	for _, item := range req.Items {
 		nodeID := item.NodeID
-		accessItem.Digest = append(accessItem.Digest, string(nodeID.Root.Digest))
+		accessItem.Digest = append(accessItem.Digest, nodeID.Root.Digest.String())
 		blobs, err := fetchNodes(ctx, nodeID.Root, item.Depth)
 		if err != nil {
 			log.Warningf(ctx, "error getting blob %q: %s", nodeID.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, string(nodeID.Root.Digest))
+			accessItem.NotFound = append(accessItem.NotFound, nodeID.Root.Digest.String())
 			continue
 		}
 		for _, blob := range blobs {
 			digest := utils.ComputeDigest(blob)
-			accessItem.Found = append(accessItem.Found, string(digest))
-			res.Items[digest] = blob
+			digestString := digest.String()
+			accessItem.Found = append(accessItem.Found, string(digestString))
+			res.Items[digestString] = blob
 		}
 	}
 
@@ -96,31 +98,31 @@ func apiPutHandler(c *gin.Context) {
 	var res api.PutResponse
 	res.Digest = make([]utils.Digest, 0, len(req.Blobs))
 	for _, blob := range req.Blobs {
-		h := utils.ComputeDigest(blob)
-		exists, err := blobStore.Has(ctx, h)
+		digest := utils.ComputeDigest(blob)
+		exists, err := blobStore.Has(ctx, digest)
 		if err != nil {
 			log.Errorf(ctx, "error checking blob existence: %s", err)
-			accessItem.NotCreated = append(accessItem.NotCreated, string(h))
+			accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
 			continue
 		}
 		if exists {
-			log.Infof(ctx, "blob %q already exists", h)
-			accessItem.NotCreated = append(accessItem.NotCreated, string(h))
+			log.Infof(ctx, "blob %q already exists", digest)
+			accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
 			continue
 		}
-		h1, err := blobStore.Put(ctx, blob)
-		if h1 != h {
-			log.Errorf(ctx, "mismatching hash, expected %s, got %s", h, h1)
+		digest1, err := blobStore.Put(ctx, blob)
+		if !bytes.Equal(digest1, digest) {
+			log.Errorf(ctx, "mismatching digest, expected %q, got %q", digest.String(), digest1.String())
 		}
-		accessItem.Digest = append(accessItem.Digest, string(h1))
+		accessItem.Digest = append(accessItem.Digest, digest1.String())
 		if err != nil {
 			log.Errorf(ctx, "error adding blob: %s", err)
-			accessItem.NotCreated = append(accessItem.NotCreated, string(h1))
+			accessItem.NotCreated = append(accessItem.NotCreated, digest1.String())
 			continue
 		}
-		log.Infof(ctx, "added blob: %s", h1)
-		accessItem.Created = append(accessItem.Created, string(h1))
-		res.Digest = append(res.Digest, h1)
+		log.Infof(ctx, "added blob: %q", digest1.String())
+		accessItem.Created = append(accessItem.Created, digest1.String())
+		res.Digest = append(res.Digest, digest1)
 	}
 
 	log.Debugf(ctx, "res: %#v", res)

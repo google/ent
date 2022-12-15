@@ -46,18 +46,10 @@ func tree(o nodeservice.ObjectGetter, digest utils.Digest, indent int, kindID ui
 	k := kind(s, kindID)
 	kindName := k.Name
 	fmt.Printf("%s %s\n", strings.Repeat("  ", indent), color.GreenString(kindName))
-	for fieldID, links := range node.Links {
-		f := field(k, uint32(fieldID))
-		fieldName := f.Name
-		if fieldName == "" {
-			fieldName = fmt.Sprintf("%d", f.FieldID)
-		}
-		for index, link := range links {
-			selector := fmt.Sprintf("%s[%d]", fieldName, index)
-			fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Digest)))
-			fieldKindIndex := f.KindID
-			tree(o, link.Digest, indent+1, fieldKindIndex)
-		}
+	for i, link := range node.Links {
+		selector := fmt.Sprintf("%d", i)
+		fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Digest)))
+		tree(o, link.Digest, indent+1, 0 /* TODO */)
 	}
 }
 
@@ -101,7 +93,7 @@ var treeCmd = &cobra.Command{
 		}
 		o := getObjectStore(remote)
 		o1 := nodeservice.Cached{
-			Cache: make(map[utils.Digest][]byte),
+			Cache: make(map[utils.DigestArray][]byte),
 			Inner: o,
 		}
 

@@ -49,16 +49,17 @@ var digestCmd = &cobra.Command{
 	},
 }
 
-type traverseF func([]byte, utils.Digest, string)
+type traverseF func([]byte, utils.Digest, string) error
 
-func print(bytes []byte, digest utils.Digest, name string) {
+func print(bytes []byte, digest utils.Digest, name string) error {
 	fmt.Printf("%s", formatDigest(digest, name))
+	return nil
 }
 
 func digestStdin() (utils.Digest, error) {
 	data, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		return "", fmt.Errorf("could not read stdin: %v", err)
+		return utils.Digest{}, fmt.Errorf("could not read stdin: %v", err)
 	}
 	return digestData(data)
 }
@@ -66,42 +67,42 @@ func digestStdin() (utils.Digest, error) {
 func traverseFileOrDir(filename string, f traverseF) (utils.Digest, error) {
 	info, err := os.Stat(filename)
 	if err != nil {
-		return "", fmt.Errorf("could not stat %s: %v", filename, err)
+		return utils.Digest{}, fmt.Errorf("could not stat %s: %v", filename, err)
 	}
 	if info.IsDir() {
 		return traverseDir(filename, f)
 	} else {
-		return traverseDir(filename, f)
+		return traverseFile(filename, f)
 	}
 }
 
 func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 	files, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		return "", fmt.Errorf("could not read directory %s: %v", dirname, err)
+		return utils.Digest{}, fmt.Errorf("could not read directory %s: %v", dirname, err)
 	}
-	links := make(map[uint][]utils.Link)
+	links := make([]utils.Link, 0, len(files))
 	for _, file := range files {
 		filename := dirname + "/" + file.Name()
 		info, err := os.Stat(filename)
 		if err != nil {
-			return "", fmt.Errorf("could not stat %q: %v", filename, err)
+			return utils.Digest{}, fmt.Errorf("could not stat %q: %v", filename, err)
 		}
 		if info.IsDir() {
 			digest, err := traverseDir(filename, f)
 			if err != nil {
-				return "", err
+				return utils.Digest{}, err
 			}
-			links[0] = append(links[0], utils.Link{
+			links = append(links, utils.Link{
 				Type:   utils.TypeDAG,
 				Digest: digest,
 			})
 		} else {
 			digest, err := traverseFile(filename, f)
 			if err != nil {
-				return "", err
+				return utils.Digest{}, err
 			}
-			links[2] = append(links[2], utils.Link{
+			links = append(links, utils.Link{
 				Type:   utils.TypeRaw,
 				Digest: digest,
 			})
@@ -113,17 +114,20 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 	fmt.Printf("DAG node: %v\n", dagNode)
 	serialized, err := utils.SerializeDAGNode(&dagNode)
 	if err != nil {
-		return "", err
+		return utils.Digest{}, err
 	}
 	digest := utils.ComputeDigest(serialized)
-	f(serialized, digest, dirname+"/")
+	err = f(serialized, digest, dirname+"/")
+	if err != nil {
+		log.Printf("could not traverse directory %q: %v", dirname, err)
+	}
 	return digest, nil
 }
 
 func traverseFile(filename string, f traverseF) (utils.Digest, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return "", fmt.Errorf("could not read file %q: %v", filename, err)
+		return utils.Digest{}, fmt.Errorf("could not read file %q: %v", filename, err)
 	}
 	f(data, utils.ComputeDigest(data), filename)
 	return digestData(data)
@@ -134,5 +138,5 @@ func digestData(data []byte) (utils.Digest, error) {
 }
 
 func formatDigest(digest utils.Digest, name string) string {
-	return fmt.Sprintf("%s %s\n", color.YellowString(string(digest)), name)
+	return fmt.Sprintf("%s %s\n", color.YellowString(string(digest.String())), name)
 }

@@ -13,33 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package main
 
-import "github.com/google/ent/utils"
-
-const (
-	APIV1BLOBSGET = "/api/v1/blobs/get"
-	APIV1BLOBSPUT = "/api/v1/blobs/put"
-)
-
-type GetRequest struct {
-	Items []GetRequestItem `json:"items"`
-}
-
-type GetRequestItem struct {
-	NodeID utils.NodeID `json:"node_id"`
-	Depth  uint         `json:"depth"`
-}
-
-type GetResponse struct {
-	// Digest string to bytes.
-	Items map[string][]byte `json:"items"`
-}
-
-type PutRequest struct {
-	Blobs [][]byte `json:"blobs"`
-}
-
-type PutResponse struct {
-	Digest []utils.Digest `json:"digest"`
+func main() {
+	println("Hello, world!")
 }

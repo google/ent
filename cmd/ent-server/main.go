@@ -276,20 +276,14 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 	}
 	links := []UILink{}
 	if node != nil {
-		for fieldID, ll := range node.Links {
-			for index, l := range ll {
-				selector := utils.Selector{
-					FieldID: fieldID,
-					Index:   uint(index),
-				}
-				linkPath := segments
-				linkPath = append(linkPath, selector)
-				links = append(links, UILink{
-					Selector: selector,
-					Digest:   string(l.Digest),
-					URL:      path.Join("/", "browse", string(root), utils.PrintPath(linkPath)),
-				})
-			}
+		for linkIndex, link := range node.Links {
+			linkPath := segments
+			linkPath = append(linkPath, utils.Selector(linkIndex))
+			links = append(links, UILink{
+				Selector: utils.Selector(linkIndex),
+				Digest:   string(link.Digest),
+				URL:      path.Join("/", "browse", string(root), utils.PrintPath(linkPath)),
+			})
 		}
 	}
 	currentURL := path.Join("/", "browse", string(root))
@@ -354,15 +348,13 @@ func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, err
 		return nodes, nil
 	}
 
-	for _, links := range dagNode.Links {
-		for _, link := range links {
-			nn, err := fetchNodes(ctx, link, depth-1)
-			if err != nil {
-				log.Warningf(ctx, "error fetching nodes: %s", err)
-				continue
-			}
-			nodes = append(nodes, nn...)
+	for _, link := range dagNode.Links {
+		nn, err := fetchNodes(ctx, link, depth-1)
+		if err != nil {
+			log.Warningf(ctx, "error fetching nodes: %s", err)
+			continue
 		}
+		nodes = append(nodes, nn...)
 	}
 	return nodes, nil
 }
@@ -379,16 +371,16 @@ func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selecto
 	} else {
 		nodeRaw, err := blobStore.Get(ctx, digest)
 		if err != nil {
-			return "", fmt.Errorf("could not get blob %s: %w", digest, err)
+			return utils.Digest{}, fmt.Errorf("could not get blob %s: %w", digest, err)
 		}
 		node, err := utils.ParseDAGNode(nodeRaw)
 		if err != nil {
-			return "", fmt.Errorf("could not parse node %s: %w", digest, err)
+			return utils.Digest{}, fmt.Errorf("could not parse node %s: %w", digest, err)
 		}
 		selector := segments[0]
-		next := node.Links[selector.FieldID][selector.Index]
+		next := node.Links[selector]
 		if err != nil {
-			return "", fmt.Errorf("could not traverse %s/%v: %w", digest, selector, err)
+			return utils.Digest{}, fmt.Errorf("could not traverse %s/%v: %w", digest, selector, err)
 		}
 		log.Debugf(ctx, "next: %v", next)
 		return traverse(ctx, next.Digest, segments[1:])

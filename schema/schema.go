@@ -16,9 +16,11 @@
 package schema
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 
@@ -51,20 +53,36 @@ func ResolveLink(o nodeservice.ObjectGetter, base utils.Digest, path []utils.Sel
 	} else {
 		object, err := o.Get(context.Background(), base)
 		if err != nil {
-			return "", fmt.Errorf("failed to get object: %v", err)
+			return utils.Digest{}, fmt.Errorf("failed to get object: %v", err)
 		}
 		node, err := utils.ParseDAGNode(object)
 		if err != nil {
-			return "", fmt.Errorf("failed to parse object: %v", err)
+			return utils.Digest{}, fmt.Errorf("failed to parse object: %v", err)
 		}
 		selector := path[0]
-		newBase := node.Links[selector.FieldID][selector.Index]
+		newBase := node.Links[selector]
 		return ResolveLink(o, newBase.Digest, path[1:])
 	}
 }
 
+func GetFieldWithId(v interface{}, fieldID uint64) (reflect.Value, error) {
+	rv := reflect.ValueOf(v).Elem()
+	for i := 0; i < rv.NumField(); i++ {
+		typeField := rv.Type().Field(i)
+		tag := typeField.Tag.Get("ent")
+		id, err := strconv.Atoi(tag)
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("failed to parse field id: %v", err)
+		}
+		if uint64(id) == fieldID {
+			return rv.Field(i), nil
+		}
+	}
+	return reflect.Value{}, fmt.Errorf("failed to find field with id: %v", fieldID)
+}
+
 func GetStruct(o nodeservice.ObjectGetter, digest utils.Digest, v interface{}) error {
-	log.Debugf(context.Background(), "getting struct %s", digest)
+	log.Debugf(context.Background(), "getting struct %s", digest.String())
 	object, err := o.Get(context.Background(), digest)
 	if err != nil {
 		return fmt.Errorf("failed to get struct object: %v", err)
@@ -74,143 +92,147 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Digest, v interface{}) e
 		return fmt.Errorf("failed to parse struct object: %v", err)
 	}
 	log.Debugf(context.Background(), "parsed node: %+v", node)
-	rv := reflect.ValueOf(v).Elem()
-	for i := 0; i < rv.NumField(); i++ {
-		typeField := rv.Type().Field(i)
-		tag := typeField.Tag.Get("ent")
-		fieldID, err := strconv.Atoi(tag)
-		if err != nil {
-			return fmt.Errorf("failed to parse field id: %v", err)
+	r := bytes.NewReader(node.Bytes)
+	linkIndex := 0
+	for {
+		field, err := utils.DecodeField(r)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return fmt.Errorf("failed to decode field: %v", err)
 		}
-		links := node.Links[uint(fieldID)]
-		fieldValue := rv.Field(i)
-		switch typeField.Type.Kind() {
-		case reflect.Uint32:
-			if len(links) != 1 {
-				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
+		fieldValue, err := GetFieldWithId(v, field.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get field with id: %v", err)
+		}
+		switch field.Type {
+		case utils.FieldTypeInt:
+			switch fieldValue.Kind() {
+			case reflect.Slice:
+				// Append to existing slice.
+				fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(field.UintValue).Convert(fieldValue.Type().Elem())))
+			case reflect.Int32, reflect.Int64, reflect.Int:
+				fieldValue.SetInt(int64(field.UintValue))
+			case reflect.Uint32, reflect.Uint64, reflect.Uint:
+				fieldValue.SetUint(uint64(field.UintValue))
+			default:
+				return fmt.Errorf("unexpected field type for int: %v", fieldValue.Kind())
 			}
-			f, err := GetUint32(o, links[0].Digest)
-			if err != nil {
-				return fmt.Errorf("failed to get uint32 field: %v", err)
-			}
-			fieldValue.SetUint(uint64(f))
-		case reflect.String:
-			if len(links) != 1 {
-				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
-			}
-			f, err := GetString(o, links[0].Digest)
-			if err != nil {
-				return fmt.Errorf("failed to get uint32 field: %v", err)
-			}
-			fieldValue.SetString(f)
-		case reflect.Struct:
-			if len(links) != 1 {
-				return fmt.Errorf("expected 1 link for field %q with field id %d, got %d", typeField.Name, fieldID, len(links))
-			}
-			err = GetStruct(o, links[0].Digest, fieldValue.Addr().Interface())
-			if err != nil {
-				return fmt.Errorf("failed to get struct field: %v", err)
-			}
-		case reflect.Slice:
-			switch typeField.Type.Elem().Kind() {
-			case reflect.Uint32:
-				for _, link := range links {
-					v, err := GetUint32(o, link.Digest)
-					if err != nil {
-						return fmt.Errorf("failed to get uint32 field: %v", err)
-					}
-					fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(v)))
+		case utils.FieldTypeBytes:
+			switch fieldValue.Kind() {
+			case reflect.Slice:
+				switch fieldValue.Type().Elem().Kind() {
+				case reflect.Uint8: // []byte
+					fieldValue.SetBytes(field.BytesValue)
+				case reflect.String: // []string
+					fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(string(field.BytesValue))))
+				default:
+					return fmt.Errorf("unexpected field type for bytes: %v", fieldValue.Type().Elem().Kind())
 				}
 			case reflect.String:
-				for _, link := range links {
-					v, err := GetString(o, link.Digest)
-					if err != nil {
-						return fmt.Errorf("failed to get string field: %v", err)
-					}
-					fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(v)))
-				}
-			case reflect.Struct:
-				for _, link := range links {
-					v := reflect.New(typeField.Type.Elem())
-					err := GetStruct(o, link.Digest, v.Interface())
-					if err != nil {
-						return fmt.Errorf("failed to get struct field: %v", err)
-					}
-					fieldValue.Set(reflect.Append(fieldValue, v.Elem()))
-				}
+				fieldValue.SetString(string(field.BytesValue))
 			default:
-				return fmt.Errorf("unsupported field type: %v", typeField.Type.Elem().Kind())
+				return fmt.Errorf("unsupported field type: %v", fieldValue.Kind())
+			}
+		case utils.FieldTypeMsg:
+			switch fieldValue.Kind() {
+			case reflect.Slice:
+				if field.UintValue != 1 {
+					return fmt.Errorf("no presence bit for repeated field: %v", field.UintValue)
+				}
+				link := node.Links[linkIndex]
+				linkIndex++
+				v := reflect.New(fieldValue.Type().Elem())
+				if err := GetStruct(o, link.Digest, v.Interface()); err != nil {
+					return fmt.Errorf("failed to get struct: %v", err)
+				}
+				fieldValue.Set(reflect.Append(fieldValue, v.Elem()))
+			case reflect.Ptr:
+			case reflect.Struct:
+				if field.UintValue != 1 {
+					return fmt.Errorf("no presence bit for repeated field: %v", field.UintValue)
+				}
+				link := node.Links[linkIndex]
+				linkIndex++
+				if err := GetStruct(o, link.Digest, fieldValue.Addr().Interface()); err != nil {
+					return fmt.Errorf("failed to get struct: %v", err)
+				}
 			}
 		default:
-			return fmt.Errorf("unsupported field type: %v", typeField.Type.Kind())
+			return fmt.Errorf("unsupported field type: %v", field.Type)
 		}
 	}
 	return nil
 }
 
 func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Digest, error) {
-	node := utils.DAGNode{
-		Links: make(map[uint][]utils.Link),
-	}
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
 	}
+	bytes := &bytes.Buffer{}
+	links := []utils.Link{}
+	// TODO: Traverse in order of field id.
 	for i := 0; i < rv.NumField(); i++ {
 		typeField := rv.Type().Field(i)
 		tag := typeField.Tag.Get("ent")
 		fieldID, err := strconv.Atoi(tag)
 		if err != nil {
-			return "", fmt.Errorf("failed to parse field id: %v", err)
+			return utils.Digest{}, fmt.Errorf("failed to parse field id: %v", err)
 		}
 		fieldValue := rv.Field(i)
 		switch typeField.Type.Kind() {
-		case reflect.Uint32:
-			digest, err := PutUint32(o, uint32(fieldValue.Uint()))
-			if err != nil {
-				return "", fmt.Errorf("failed to put uint32 field: %v", err)
-			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
-				Digest: digest,
+		case reflect.Uint32, reflect.Uint64, reflect.Uint:
+			log.Infof(nil, "putting int: %+v", fieldValue)
+			utils.EncodeField(bytes, &utils.Field{
+				ID:         uint64(fieldID),
+				Type:       utils.FieldTypeInt,
+				UintValue:  fieldValue.Uint(),
+				BytesValue: nil,
 			})
 		case reflect.String:
-			digest, err := PutString(o, fieldValue.String())
-			if err != nil {
-				return "", fmt.Errorf("failed to put string field: %v", err)
-			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
-				Digest: digest,
+			log.Infof(nil, "putting string: %+v", fieldValue)
+			utils.EncodeField(bytes, &utils.Field{
+				ID:         uint64(fieldID),
+				Type:       utils.FieldTypeBytes,
+				UintValue:  0,
+				BytesValue: []byte(fieldValue.String()),
 			})
 		case reflect.Struct:
 			digest, err := PutStruct(o, fieldValue.Interface())
 			if err != nil {
-				return "", fmt.Errorf("failed to put struct field: %v", err)
+				return utils.Digest{}, fmt.Errorf("failed to put struct field: %v", err)
 			}
-			node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+			utils.EncodeField(bytes, &utils.Field{
+				ID:         uint64(fieldID),
+				Type:       utils.FieldTypeMsg,
+				UintValue:  1, // Present
+				BytesValue: nil,
+			})
+			links = append(links, utils.Link{
+				Type:   utils.TypeDAG,
 				Digest: digest,
 			})
 		case reflect.Slice:
 			switch typeField.Type.Elem().Kind() {
-			case reflect.Uint32:
+			case reflect.Uint32, reflect.Uint64, reflect.Uint:
 				for i := 0; i < fieldValue.Len(); i++ {
 					iv := fieldValue.Index(i).Uint()
-					digest, err := PutUint32(o, uint32(iv))
-					if err != nil {
-						return "", fmt.Errorf("failed to put uint32 field: %v", err)
-					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
-						Digest: digest,
+					utils.EncodeField(bytes, &utils.Field{
+						ID:         uint64(fieldID),
+						Type:       utils.FieldTypeInt,
+						UintValue:  iv,
+						BytesValue: nil,
 					})
 				}
 			case reflect.String:
 				for i := 0; i < fieldValue.Len(); i++ {
 					iv := fieldValue.Index(i).String()
-					digest, err := PutString(o, iv)
-					if err != nil {
-						return "", fmt.Errorf("failed to put string field: %v", err)
-					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
-						Digest: digest,
+					utils.EncodeField(bytes, &utils.Field{
+						ID:         uint64(fieldID),
+						Type:       utils.FieldTypeBytes,
+						UintValue:  0,
+						BytesValue: []byte(iv),
 					})
 				}
 			case reflect.Struct:
@@ -218,24 +240,37 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Digest, error) {
 					iv := fieldValue.Index(i).Interface()
 					digest, err := PutStruct(o, iv)
 					if err != nil {
-						return "", fmt.Errorf("failed to put string field: %v", err)
+						return utils.Digest{}, fmt.Errorf("failed to put string field: %v", err)
 					}
-					node.Links[uint(fieldID)] = append(node.Links[uint(fieldID)], utils.Link{
+					utils.EncodeField(bytes, &utils.Field{
+						ID:         uint64(fieldID),
+						Type:       utils.FieldTypeMsg,
+						UintValue:  1, // Present
+						BytesValue: nil,
+					})
+					links = append(links, utils.Link{
+						Type:   utils.TypeDAG,
 						Digest: digest,
 					})
 				}
 			default:
-				return "", fmt.Errorf("unsupported field type: %v", typeField.Type.Elem().Kind())
+				return utils.Digest{}, fmt.Errorf("unsupported field type: %v", typeField.Type.Elem().Kind())
 			}
 		default:
-			return "", fmt.Errorf("unsupported field type: %v", typeField.Type.Kind())
+			return utils.Digest{}, fmt.Errorf("unsupported field type: %v", typeField.Type.Kind())
 		}
+	}
+	node := utils.DAGNode{
+		Bytes: bytes.Bytes(),
+		Links: links,
 	}
 	b, err := utils.SerializeDAGNode(&node)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize node: %v", err)
+		return utils.Digest{}, fmt.Errorf("failed to serialize node: %v", err)
 	}
-	return o.Put(context.Background(), b)
+	digest, err := o.Put(context.Background(), b)
+	log.Infof(nil, "putting node: %+v -> %s", node, digest)
+	return digest, err
 }
 
 func GetUint32(o nodeservice.ObjectGetter, digest utils.Digest) (uint32, error) {

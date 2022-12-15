@@ -16,6 +16,7 @@
 package nodeservice
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -69,7 +70,7 @@ func DownloadFromURL(digest utils.Digest, url string) ([]byte, error) {
 		return nil, fmt.Errorf("could not download target: %v", err)
 	}
 	targetDigest := utils.ComputeDigest(target)
-	if targetDigest != digest {
+	if !bytes.Equal(targetDigest, digest) {
 		return nil, fmt.Errorf("digest mismatch, wanted: %q, got %q", digest, targetDigest)
 	}
 	return target, nil

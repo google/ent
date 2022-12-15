@@ -16,39 +16,48 @@
 package utils
 
 import (
-	"crypto/sha256"
 	"encoding/base32"
 	"encoding/hex"
 	"fmt"
 	"strings"
+
+	"github.com/multiformats/go-multihash"
 )
 
-type Digest string
+type Digest multihash.Multihash
+type DigestArray [32 + 4]byte
+type DigestString string
+
+const hash = multihash.SHA2_256
 
 func ParseDigest(s string) (Digest, error) {
-	if strings.HasPrefix(s, "sha256:") {
-		rest := s[7:]
-		if len(rest) != 64 {
-			return "", fmt.Errorf("invalid digest: %q", s)
-		}
-		for _, c := range rest {
-			if !strings.Contains("0123456789abcdef", string(c)) {
-				return "", fmt.Errorf("invalid digest: %q", s)
-			}
-		}
-		_, err := hex.DecodeString(s[7:])
-		if err != nil {
-			return "", err
-		}
-		return Digest(s), nil
+	digest, err := multihash.FromHexString(s)
+	if err == nil {
+		return Digest(digest), nil
 	} else {
-		return "", fmt.Errorf("invalid digest: %q", s)
+		if strings.HasPrefix(s, "sha256:") {
+			s = strings.TrimPrefix(s, "sha256:")
+			ss, err := hex.DecodeString(s)
+			if err != nil {
+				return nil, err
+			}
+			digest, err = multihash.Encode(ss, multihash.SHA2_256)
+			if err != nil {
+				return nil, err
+			}
+			return Digest(digest), err
+		} else {
+			return nil, fmt.Errorf("invalid digest: %v", err)
+		}
 	}
 }
 
 func ComputeDigest(b []byte) Digest {
-	h := sha256.Sum256(b)
-	return Digest("sha256:" + hex.EncodeToString(h[:]))
+	d, err := multihash.Sum(b, hash, -1)
+	if err != nil {
+		panic(err)
+	}
+	return Digest(d)
 }
 
 type NodeID struct {
@@ -62,4 +71,17 @@ func ToBase32(d Digest) (string, error) {
 		return "", fmt.Errorf("invalid digest: %q", d)
 	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h), nil
+}
+
+func (d Digest) String() string {
+	return multihash.Multihash(d).HexString()
+}
+
+func (d Digest) Array() DigestArray {
+	var a DigestArray
+	if len(d) != len(a) {
+		panic("invalid digest")
+	}
+	copy(a[:], d[:])
+	return a
 }

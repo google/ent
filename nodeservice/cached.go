@@ -25,35 +25,38 @@ import (
 )
 
 type Cached struct {
-	Cache map[utils.Digest][]byte
+	Cache map[utils.DigestArray][]byte
 	Inner NodeService
 }
 
 func (s Cached) Get(ctx context.Context, h utils.Digest) ([]byte, error) {
-	if b, ok := s.Cache[h]; ok {
+	ha := h.Array()
+	if b, ok := s.Cache[ha]; ok {
 		log.Debugf(ctx, "cache hit for %s", h)
 		return b, nil
 	}
 	s.fillCache(ctx, h)
-	if b, ok := s.Cache[h]; ok {
+	if b, ok := s.Cache[ha]; ok {
 		return b, nil
 	}
 	return nil, ErrNotFound
 }
 
 func (s Cached) Has(ctx context.Context, h utils.Digest) (bool, error) {
-	if _, ok := s.Cache[h]; ok {
+	ha := h.Array()
+	if _, ok := s.Cache[ha]; ok {
 		log.Debugf(ctx, "cache hit for %s", h)
 		return true, nil
 	}
 	s.fillCache(ctx, h)
-	if _, ok := s.Cache[h]; ok {
+	if _, ok := s.Cache[ha]; ok {
 		return true, nil
 	}
 	return false, nil
 }
 
 func (s Cached) fillCache(ctx context.Context, h utils.Digest) error {
+	ha := h.Array()
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
 			NodeID: utils.NodeID{
@@ -71,7 +74,7 @@ func (s Cached) fillCache(ctx context.Context, h utils.Digest) error {
 	}
 	log.Debugf(ctx, "retrieved %d nodes", len(res.Items))
 	for _, r := range res.Items {
-		s.Cache[h] = r
+		s.Cache[ha] = r
 	}
 	return nil
 }

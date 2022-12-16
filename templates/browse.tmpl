@@ -13,7 +13,7 @@
       >
         <a href="{{ .node.WWWURL }}">www</a>
       </div>
-      {{ range.node.PathSegments }}
+      {{ range .node.PathSegments }}
       <div>
         <div class="inline px-1">/</div>
         <a class="underline" href="{{ .URL }}">{{ .Name }}</a>
@@ -43,7 +43,7 @@
     {{ end }}
 
     {{/* dirs */}}
-    {{ range.node.Links }}
+    {{ range .node.Links }}
     <a href="{{ .URL }}" class="block p-2 hover:bg-blue-200 font-mono flex">
       <div class="px-2 text-blue-500" onclick="rename()">
         <svg

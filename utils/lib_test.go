@@ -36,4 +36,20 @@ func TestParseDigest(t *testing.T) {
 	if digestString != "12201f209f17903dc0310f9a0fe337d3a893193f20b4171895a74d0200d6019dedd6" {
 		t.Fatalf("digest string should be equal")
 	}
+
+	base32Digest, err := ToBase32(digest0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedBase32Digest := "CIQB6IE7C6ID3QBRB6NA7YZX2OUJGGJ7EC2BOGEVU5GQEAGWAGO63VQ"
+	if base32Digest != expectedBase32Digest {
+		t.Fatalf("incorrect base32 digest")
+	}
+	back, err := FromBase32(base32Digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(digest0, back) {
+		t.Fatalf("digests should be equal")
+	}
 }

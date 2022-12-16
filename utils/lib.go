@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 )
 
@@ -61,16 +62,20 @@ func ComputeDigest(b []byte) Digest {
 }
 
 type NodeID struct {
-	Root Link
+	Root cid.Cid
 	Path Path
 }
 
 func ToBase32(d Digest) (string, error) {
-	h, err := hex.DecodeString(string(d[7:]))
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(d), nil
+}
+
+func FromBase32(s string) (Digest, error) {
+	d, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(s)
 	if err != nil {
-		return "", fmt.Errorf("invalid digest: %q", d)
+		return nil, err
 	}
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h), nil
+	return Digest(d), nil
 }
 
 func (d Digest) String() string {

@@ -142,3 +142,8 @@ func init() {
 	rootCmd.AddCommand(printSchemaCmd)
 	rootCmd.AddCommand(uploadCmd)
 }
+
+func GetObjectGetter() nodeservice.ObjectGetter {
+	config := readConfig()
+	return getMultiplexObjectGetter(config)
+}

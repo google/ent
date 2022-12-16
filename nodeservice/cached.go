@@ -22,6 +22,8 @@ import (
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 type Cached struct {
@@ -60,10 +62,7 @@ func (s Cached) fillCache(ctx context.Context, h utils.Digest) error {
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
 			NodeID: utils.NodeID{
-				Root: utils.Link{
-					Type:   utils.TypeDAG,
-					Digest: h,
-				},
+				Root: cid.NewCidV1(utils.TypeDAG, multihash.Multihash(h)),
 			},
 			Depth: 10,
 		}},

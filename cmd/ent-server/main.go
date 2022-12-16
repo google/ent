@@ -34,16 +34,13 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/appengine/v2"
 )
 
 var (
 	blobStore nodeservice.ObjectStore
-
-	handlerBrowse http.Handler
-	handlerWWW    http.Handler
 
 	enableMemcache = false
 	enableBigquery = false
@@ -96,9 +93,6 @@ func hostSegments(host string) []string {
 
 func main() {
 	ctx := context.Background()
-	if appengine.IsAppEngine() {
-		ctx = appengine.BackgroundContext()
-	}
 
 	domainNameEnv := os.Getenv("DOMAIN_NAME")
 	if domainNameEnv != "" {
@@ -167,49 +161,33 @@ func main() {
 		Inner: ds,
 	}
 
-	{
-		router := gin.Default()
+	router := gin.Default()
 
-		config := cors.DefaultConfig()
-		config.AllowAllOrigins = true
-		router.Use(cors.New(config))
-		/*
-			router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-				ctx := appengine.NewContext(param.Request)
-				log.Infof(ctx, "%s", param.ErrorMessage)
-				return "\n"
-			}))
-		*/
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	router.Use(cors.New(config))
+	/*
+		router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+			ctx := appengine.NewContext(param.Request)
+			log.Infof(ctx, "%s", param.ErrorMessage)
+			return "\n"
+		}))
+	*/
 
-		router.RedirectTrailingSlash = false
-		router.RedirectFixedPath = false
-		router.LoadHTMLGlob("templates/*")
+	router.RedirectTrailingSlash = false
+	router.RedirectFixedPath = false
+	router.LoadHTMLGlob("templates/*")
 
-		// Uninterpreted bytes by digest, no DAG traversal.
-		// router.GET("/api/objects/:digest", apiObjectsGetHandler)
-		// router.POST("/api/objects", apiObjectsUpdateHandler)
+	router.POST(api.APIV1BLOBSGET, apiGetHandler)
+	router.POST(api.APIV1BLOBSPUT, apiPutHandler)
 
-		// router.POST("/api/objects/get", apiObjectsGetHandler)
-		// router.POST("/api/objects/update", apiObjectsUpdateHandler)
+	router.GET("/raw/:digest", rawGetHandler)
+	router.PUT("/raw", rawPutHandler)
 
-		router.POST(api.APIV1BLOBSGET, apiGetHandler)
-		router.POST(api.APIV1BLOBSPUT, apiPutHandler)
+	router.GET("/browse/:digest", webGetHandler)
+	router.GET("/browse/:digest/*path", webGetHandler)
 
-		router.GET("/raw/:digest", rawGetHandler)
-		router.PUT("/raw", rawPutHandler)
-
-		router.GET("/browse/:digest", webGetHandler)
-		router.GET("/browse/:digest/*path", webGetHandler)
-
-		router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
-
-		handlerBrowse = router
-	}
-	{
-		router := gin.Default()
-		router.GET("/*path", renderHandler)
-		handlerWWW = router
-	}
+	router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -219,30 +197,13 @@ func main() {
 
 	s := &http.Server{
 		Addr:           ":" + port,
-		Handler:        h2c.NewHandler(http.HandlerFunc(handlerRoot), &http2.Server{}),
+		Handler:        h2c.NewHandler(router, &http2.Server{}),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-
-	if appengine.IsAppEngine() {
-		log.Infof(ctx, "Running on App Engine")
-		http.HandleFunc("/", handlerRoot)
-		appengine.Main()
-	} else {
-		log.Infof(ctx, "Running locally")
-		log.Criticalf(ctx, "%v", s.ListenAndServe())
-	}
-}
-
-func handlerRoot(w http.ResponseWriter, r *http.Request) {
-	hostSegments := hostSegments(r.Host)
-	log.Infof(r.Context(), "host segments: %#v", hostSegments)
-	if len(hostSegments) == 2 && hostSegments[1] == wwwSegment {
-		handlerWWW.ServeHTTP(w, r)
-	} else {
-		handlerBrowse.ServeHTTP(w, r)
-	}
+	log.Infof(ctx, "Running locally")
+	log.Criticalf(ctx, "%v", s.ListenAndServe())
 }
 
 func indexHandler(c *gin.Context) {
@@ -281,7 +242,7 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 			linkPath = append(linkPath, utils.Selector(linkIndex))
 			links = append(links, UILink{
 				Selector: utils.Selector(linkIndex),
-				Digest:   string(link.Digest),
+				Digest:   link.Hash().String(),
 				URL:      path.Join("/", "browse", string(root), utils.PrintPath(linkPath)),
 			})
 		}
@@ -326,19 +287,19 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 	}
 }
 
-func fetchNodes(ctx context.Context, base utils.Link, depth uint) ([][]byte, error) {
+func fetchNodes(ctx context.Context, base cid.Cid, depth uint) ([][]byte, error) {
 	log.Debugf(ctx, "fetching nodes for %v, depth %d", base, depth)
 	var nodes [][]byte
 
-	blob, err := blobStore.Get(ctx, base.Digest)
+	blob, err := blobStore.Get(ctx, utils.Digest(base.Hash()))
 	if err != nil {
-		return nil, fmt.Errorf("error getting blob %q: %w", base.Digest, err)
+		return nil, fmt.Errorf("error getting blob %q: %w", base.Hash(), err)
 	}
 
 	nodes = append(nodes, blob)
 
 	// Nothing to recurse here.
-	if base.Type == utils.TypeRaw || depth == 0 {
+	if base.Type() == utils.TypeRaw || depth == 0 {
 		return nodes, nil
 	}
 
@@ -383,12 +344,12 @@ func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selecto
 			return utils.Digest{}, fmt.Errorf("could not traverse %s/%v: %w", digest, selector, err)
 		}
 		log.Debugf(ctx, "next: %v", next)
-		return traverse(ctx, next.Digest, segments[1:])
+		return traverse(ctx, utils.Digest(next.Hash()), segments[1:])
 	}
 }
 
 func renderHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
+	ctx := c.Request.Context()
 
 	hostSegments := hostSegments(c.Request.Host)
 	if len(hostSegments) != 2 {

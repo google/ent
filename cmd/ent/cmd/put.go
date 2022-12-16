@@ -18,11 +18,15 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 	"github.com/spf13/cobra"
 )
 
@@ -52,12 +56,13 @@ var putCmd = &cobra.Command{
 }
 
 func putStdin() error {
-	// data, err := ioutil.ReadAll(os.Stdin)
-	// if err != nil {
-	// 	return fmt.Errorf("could not read stdin: %v", err)
-	// }
-	// return putData(data)
-	return nil
+	data, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("could not read stdin: %v", err)
+	}
+	digest := utils.ComputeDigest(data)
+	link := cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest))
+	return put(data, link, "-")
 }
 
 // func putFile(filename string) error {
@@ -68,7 +73,7 @@ func putStdin() error {
 // 	return putData(data)
 // }
 
-func put(bytes []byte, digest utils.Digest, name string) error {
+func put(bytes []byte, link cid.Cid, name string) error {
 	config := readConfig()
 	remote := config.Remotes[0]
 	if remoteFlag != "" {
@@ -80,9 +85,10 @@ func put(bytes []byte, digest utils.Digest, name string) error {
 	}
 	nodeService := getObjectStore(remote)
 
+	digest := utils.Digest(link.Hash())
 	if exists(nodeService, digest) {
 		marker := color.GreenString("✓")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
 		return nil
 	} else {
 		_, err := nodeService.Put(context.Background(), bytes)
@@ -91,7 +97,7 @@ func put(bytes []byte, digest utils.Digest, name string) error {
 			return fmt.Errorf("could not put object: %v", err)
 		}
 		marker := color.BlueString("↑")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
 		return nil
 	}
 }

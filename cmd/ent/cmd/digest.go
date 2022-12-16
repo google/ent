@@ -23,6 +23,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 	"github.com/spf13/cobra"
 )
 
@@ -49,10 +51,10 @@ var digestCmd = &cobra.Command{
 	},
 }
 
-type traverseF func([]byte, utils.Digest, string) error
+type traverseF func([]byte, cid.Cid, string) error
 
-func print(bytes []byte, digest utils.Digest, name string) error {
-	fmt.Printf("%s", formatDigest(digest, name))
+func print(bytes []byte, link cid.Cid, name string) error {
+	fmt.Printf("%s", formatLink(link, name))
 	return nil
 }
 
@@ -81,7 +83,8 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 	if err != nil {
 		return utils.Digest{}, fmt.Errorf("could not read directory %s: %v", dirname, err)
 	}
-	links := make([]utils.Link, 0, len(files))
+	links := make([]cid.Cid, 0, len(files))
+	data := ""
 	for _, file := range files {
 		filename := dirname + "/" + file.Name()
 		info, err := os.Stat(filename)
@@ -93,23 +96,20 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 			if err != nil {
 				return utils.Digest{}, err
 			}
-			links = append(links, utils.Link{
-				Type:   utils.TypeDAG,
-				Digest: digest,
-			})
+			links = append(links, cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest)))
+			data += file.Name() + "\n"
 		} else {
 			digest, err := traverseFile(filename, f)
 			if err != nil {
 				return utils.Digest{}, err
 			}
-			links = append(links, utils.Link{
-				Type:   utils.TypeRaw,
-				Digest: digest,
-			})
+			links = append(links, cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)))
+			data += file.Name() + "\n"
 		}
 	}
 	dagNode := utils.DAGNode{
 		Links: links,
+		Bytes: []byte(data),
 	}
 	fmt.Printf("DAG node: %v\n", dagNode)
 	serialized, err := utils.SerializeDAGNode(&dagNode)
@@ -117,7 +117,8 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 		return utils.Digest{}, err
 	}
 	digest := utils.ComputeDigest(serialized)
-	err = f(serialized, digest, dirname+"/")
+	link := cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest))
+	err = f(serialized, link, dirname+"/")
 	if err != nil {
 		log.Printf("could not traverse directory %q: %v", dirname, err)
 	}
@@ -129,7 +130,8 @@ func traverseFile(filename string, f traverseF) (utils.Digest, error) {
 	if err != nil {
 		return utils.Digest{}, fmt.Errorf("could not read file %q: %v", filename, err)
 	}
-	f(data, utils.ComputeDigest(data), filename)
+	link := cid.NewCidV1(utils.TypeRaw, multihash.Multihash(utils.ComputeDigest(data)))
+	f(data, link, filename)
 	return digestData(data)
 }
 
@@ -139,4 +141,8 @@ func digestData(data []byte) (utils.Digest, error) {
 
 func formatDigest(digest utils.Digest, name string) string {
 	return fmt.Sprintf("%s %s\n", color.YellowString(string(digest.String())), name)
+}
+
+func formatLink(link cid.Cid, name string) string {
+	return fmt.Sprintf("%s %s\n", color.YellowString(link.String()), name)
 }

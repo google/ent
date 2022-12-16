@@ -52,11 +52,11 @@ func apiGetHandler(c *gin.Context) {
 	res.Items = make(map[string][]byte, len(req.Items))
 	for _, item := range req.Items {
 		nodeID := item.NodeID
-		accessItem.Digest = append(accessItem.Digest, nodeID.Root.Digest.String())
+		accessItem.Digest = append(accessItem.Digest, nodeID.Root.Hash().String())
 		blobs, err := fetchNodes(ctx, nodeID.Root, item.Depth)
 		if err != nil {
 			log.Warningf(ctx, "error getting blob %q: %s", nodeID.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, nodeID.Root.Digest.String())
+			accessItem.NotFound = append(accessItem.NotFound, nodeID.Root.Hash().String())
 			continue
 		}
 		for _, blob := range blobs {

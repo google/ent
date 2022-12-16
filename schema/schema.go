@@ -27,6 +27,8 @@ import (
 	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 type Schema struct {
@@ -61,7 +63,7 @@ func ResolveLink(o nodeservice.ObjectGetter, base utils.Digest, path []utils.Sel
 		}
 		selector := path[0]
 		newBase := node.Links[selector]
-		return ResolveLink(o, newBase.Digest, path[1:])
+		return ResolveLink(o, utils.Digest(newBase.Hash()), path[1:])
 	}
 }
 
@@ -143,7 +145,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Digest, v interface{}) e
 				link := node.Links[linkIndex]
 				linkIndex++
 				v := reflect.New(fieldValue.Type().Elem())
-				if err := GetStruct(o, link.Digest, v.Interface()); err != nil {
+				if err := GetStruct(o, utils.Digest(link.Hash()), v.Interface()); err != nil {
 					return fmt.Errorf("failed to get struct: %v", err)
 				}
 				fieldValue.Set(reflect.Append(fieldValue, v.Elem()))
@@ -154,7 +156,7 @@ func GetStruct(o nodeservice.ObjectGetter, digest utils.Digest, v interface{}) e
 				}
 				link := node.Links[linkIndex]
 				linkIndex++
-				if err := GetStruct(o, link.Digest, fieldValue.Addr().Interface()); err != nil {
+				if err := GetStruct(o, utils.Digest(link.Hash()), fieldValue.Addr().Interface()); err != nil {
 					return fmt.Errorf("failed to get struct: %v", err)
 				}
 			}
@@ -171,7 +173,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Digest, error) {
 		rv = rv.Elem()
 	}
 	bytes := &bytes.Buffer{}
-	links := []utils.Link{}
+	links := []cid.Cid{}
 	// TODO: Traverse in order of field id.
 	for i := 0; i < rv.NumField(); i++ {
 		typeField := rv.Type().Field(i)
@@ -209,10 +211,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Digest, error) {
 				UintValue:  1, // Present
 				BytesValue: nil,
 			})
-			links = append(links, utils.Link{
-				Type:   utils.TypeDAG,
-				Digest: digest,
-			})
+			links = append(links, cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest)))
 		case reflect.Slice:
 			switch typeField.Type.Elem().Kind() {
 			case reflect.Uint32, reflect.Uint64, reflect.Uint:
@@ -248,10 +247,7 @@ func PutStruct(o nodeservice.ObjectStore, v interface{}) (utils.Digest, error) {
 						UintValue:  1, // Present
 						BytesValue: nil,
 					})
-					links = append(links, utils.Link{
-						Type:   utils.TypeDAG,
-						Digest: digest,
-					})
+					links = append(links, cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest)))
 				}
 			default:
 				return utils.Digest{}, fmt.Errorf("unsupported field type: %v", typeField.Type.Elem().Kind())

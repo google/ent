@@ -48,8 +48,8 @@ func tree(o nodeservice.ObjectGetter, digest utils.Digest, indent int, kindID ui
 	fmt.Printf("%s %s\n", strings.Repeat("  ", indent), color.GreenString(kindName))
 	for i, link := range node.Links {
 		selector := fmt.Sprintf("%d", i)
-		fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(string(link.Digest)))
-		tree(o, link.Digest, indent+1, 0 /* TODO */)
+		fmt.Printf("%s %s %s\n", strings.Repeat("  ", indent), color.BlueString(selector), color.YellowString(link.String()))
+		tree(o, utils.Digest(link.Hash()), indent+1, 0 /* TODO */)
 	}
 }
 

@@ -24,24 +24,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/multiformats/go-multihash"
+	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-varint"
 )
 
 type DAGNode struct {
 	Bytes []byte
-	Links []Link
+	Links []cid.Cid
 }
 
 const (
-	TypeRaw = 0
-	TypeDAG = 1
+	TypeRaw = cid.Raw
+	TypeDAG = 0x88
 )
-
-type Link struct {
-	Type   uint8
-	Digest Digest
-}
 
 type Path []Selector
 
@@ -162,30 +157,14 @@ func EncodeField(b *bytes.Buffer, f *Field) error {
 	return nil
 }
 
-func EncodeLink(b *bytes.Buffer, link *Link) error {
-	if err := WriteUint64(b, uint64(link.Type)); err != nil {
-		return fmt.Errorf("could not write link type: %w", err)
-	}
-	if _, err := b.Write(link.Digest); err != nil {
-		return fmt.Errorf("could not write link digest: %w", err)
-	}
-	return nil
+func EncodeLink(b *bytes.Buffer, link cid.Cid) error {
+	_, err := link.WriteBytes(b)
+	return err
 }
 
-func DecodeLink(b *bytes.Reader) (*Link, error) {
-	b1 := multihash.NewReader(b)
-	linkType, err := b.ReadByte()
-	if err != nil {
-		return nil, fmt.Errorf("could not read link type: %w", err)
-	}
-	d, err := b1.ReadMultihash()
-	if err != nil {
-		return nil, fmt.Errorf("could not read link digest: %w", err)
-	}
-	return &Link{
-		Type:   linkType,
-		Digest: Digest(d),
-	}, nil
+func DecodeLink(b *bytes.Reader) (cid.Cid, error) {
+	_, link, err := cid.CidFromReader(b)
+	return link, err
 }
 
 func ParseDAGNode(b []byte) (*DAGNode, error) {
@@ -196,13 +175,13 @@ func ParseDAGNode(b []byte) (*DAGNode, error) {
 	linksNum := order.Uint64(b[8:16])
 	log.Printf("linksNum: %d", linksNum)
 	linkReader := bytes.NewReader(b[16+bytesNum:])
-	links := make([]Link, linksNum)
+	links := make([]cid.Cid, linksNum)
 	for i := 0; i < int(linksNum); i++ {
 		link, err := DecodeLink(linkReader)
 		if err != nil {
 			return nil, fmt.Errorf("could not decode link #%d: %w", i, err)
 		}
-		links[i] = *link
+		links[i] = link
 	}
 	return &DAGNode{
 		Bytes: b[16 : 16+bytesNum],
@@ -224,7 +203,7 @@ func SerializeDAGNode(node *DAGNode) ([]byte, error) {
 	}
 	b.Write(node.Bytes)
 	for i, link := range node.Links {
-		if err := EncodeLink(b, &link); err != nil {
+		if err := EncodeLink(b, link); err != nil {
 			return nil, fmt.Errorf("could not encode link #%d: %w", i, err)
 		}
 	}

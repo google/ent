@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 	"github.com/spf13/cobra"
 )
 
@@ -99,7 +101,7 @@ func upload(planFilename string) error {
 	nodeService := getObjectStore(remote)
 
 	dagNode := utils.DAGNode{
-		Links: []utils.Link{},
+		Links: []cid.Cid{},
 	}
 
 	for _, entry := range plan.Entries {
@@ -112,10 +114,7 @@ func upload(planFilename string) error {
 		if err != nil {
 			return fmt.Errorf("could not put file: %v", err)
 		}
-		dagNode.Links = append(dagNode.Links, utils.Link{
-			Type:   utils.TypeRaw,
-			Digest: digest,
-		})
+		dagNode.Links = append(dagNode.Links, cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)))
 	}
 
 	log.Printf("dag node: %#v", dagNode)

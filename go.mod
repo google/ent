@@ -17,6 +17,7 @@ require (
 	github.com/go-playground/validator/v10 v10.11.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
 	github.com/in-toto/in-toto-golang v0.3.4-0.20211211042327-af1f9fb822bf
+	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/multiformats/go-multihash v0.2.1 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.2 // indirect

@@ -25,6 +25,8 @@ import (
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 type Remote struct {
@@ -52,9 +54,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
 			NodeID: utils.NodeID{
-				Root: utils.Link{
-					Digest: digest,
-				},
+				Root: cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)),
 			},
 		}},
 	}
@@ -169,9 +169,7 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
 			NodeID: utils.NodeID{
-				Root: utils.Link{
-					Digest: digest,
-				},
+				Root: cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)),
 			},
 		}},
 	}

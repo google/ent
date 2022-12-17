@@ -5,29 +5,39 @@
       flake-utils.url = "github:numtide/flake-utils";
       gomod2nix.url = "github:nix-community/gomod2nix";
     };
-    outputs = { self, nixpkgs, flake-utils, gomod2nix } : flake-utils.lib.eachDefaultSystem(system:
-      let pkgs = import nixpkgs { 
-        inherit system;
-        ovelays = [ gomod2nix.overlays.default ];
-      };
-      in rec {
-        packages = {
-          ent-server = pkgs.buildGoModule {
-            name = "ent-plus";
-            src = ./.;
-            vendorSha256 = "sha256-pQpattmS9VmO3ZIQUFn66az8GSmB4IvYhTTCFn6SUmo=";
-          };
+    outputs = { self, nixpkgs, flake-utils, gomod2nix } : (flake-utils.lib.eachDefaultSystem(system:
+      let
+        pkgs = import nixpkgs { 
+          inherit system;
+          ovelays = [ 
+            gomod2nix.overlays.default
+          ];
         };
-        defaultPackage = packages.ent-server;
+        ent-server = pkgs.buildGoApplication {
+          name = "ent-plus";
+          src = ./.;
+        };
+        # ent-server = pkgs.hello;
+        # dockerImage = pkgs.dockerTools.buildImage {
+        #   name = "rust-nix-blog";
+        #   config = { Cmd = [ "${ent-server}/bin/rust_nix_blog" ]; };
+        # };
+      in {
+        packages = {
+          ent-server = ent-server;
+          # dockerImage = dockerImage;
+        };
+        defaultPackage = ent-server;
         devShell = 
           pkgs.mkShell {
             packages = [
                 # pkgs.gomod2nix
             ];
             buildInputs = [
+                # gomod2nix.packages.${system}.default
                 pkgs.go
                 pkgs.gopls
             ];
           };
-      });
+      }));
 }

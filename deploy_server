@@ -6,11 +6,12 @@ set -o xtrace
 set -o pipefail
 
 export PROJECT=oak-ci
+# export PROJECT=ent-store
 export DOCKER_IMAGE=europe-docker.pkg.dev/$PROJECT/ent/ent-server:latest
 
 export CGO_ENABLED=0
 
-go build .
+go build ./cmd/ent-server
 docker build . --tag=$DOCKER_IMAGE
 docker push $DOCKER_IMAGE
 gcloud run deploy ent-server \

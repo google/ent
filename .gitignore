@@ -22,4 +22,6 @@
 /credentials.json
 
 /ent
+/ent-server
 /.direnv
+/result

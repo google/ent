@@ -35,7 +35,7 @@ type DAGNode struct {
 
 const (
 	TypeRaw = cid.Raw
-	TypeDAG = 0x88
+	TypeDAG = 0x70
 )
 
 type Path []Selector

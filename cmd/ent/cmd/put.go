@@ -85,20 +85,27 @@ func put(bytes []byte, link cid.Cid, name string) error {
 	}
 	nodeService := getObjectStore(remote)
 
-	digest := utils.Digest(link.Hash())
-	if exists(nodeService, digest) {
-		marker := color.GreenString("✓")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
-		return nil
-	} else {
-		_, err := nodeService.Put(context.Background(), bytes)
-		if err != nil {
-			log.Printf("could not put object: %v", err)
-			return fmt.Errorf("could not put object: %v", err)
+	switch link.Type() {
+	case utils.TypeRaw:
+		digest := utils.Digest(link.Hash())
+		if exists(nodeService, digest) {
+			marker := color.GreenString("✓")
+			fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
+			return nil
+		} else {
+			_, err := nodeService.Put(context.Background(), bytes)
+			if err != nil {
+				log.Printf("could not put object: %v", err)
+				return fmt.Errorf("could not put object: %v", err)
+			}
+			marker := color.BlueString("↑")
+			fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, remote.Name, name)
+			return nil
 		}
-		marker := color.BlueString("↑")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
+	case utils.TypeDAG:
 		return nil
+	default:
+		return fmt.Errorf("unknown type: %v", link.Type())
 	}
 }
 

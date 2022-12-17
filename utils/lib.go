@@ -16,7 +16,6 @@
 package utils
 
 import (
-	"encoding/base32"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -64,18 +63,6 @@ func ComputeDigest(b []byte) Digest {
 type NodeID struct {
 	Root cid.Cid
 	Path Path
-}
-
-func ToBase32(d Digest) (string, error) {
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(d), nil
-}
-
-func FromBase32(s string) (Digest, error) {
-	d, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(s)
-	if err != nil {
-		return nil, err
-	}
-	return Digest(d), nil
 }
 
 func (d Digest) String() string {

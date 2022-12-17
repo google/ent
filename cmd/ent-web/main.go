@@ -29,6 +29,7 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/appengine/v2"
@@ -83,14 +84,8 @@ func webGetHandler(c *gin.Context) {
 				c.AbortWithStatus(http.StatusNotFound)
 				return
 			}
-			log.Infof(ctx, "base: %s", digest.String())
-			base32Digest, err := utils.ToBase32(digest)
-			if err != nil {
-				log.Warningf(ctx, "could not convert digest to base32: %s", err)
-				c.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-			c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("http://%s.www.%s", base32Digest, domainName))
+			link := cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest))
+			c.Redirect(http.StatusMovedPermanently, fmt.Sprintf("http://%s.www.%s", link.String(), domainName))
 			return
 		}
 	}

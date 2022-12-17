@@ -35,6 +35,7 @@ import (
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -253,12 +254,7 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 		parentURL = path.Join("/", "browse", string(root), utils.PrintPath(segments[0:len(segments)-1]))
 	}
 
-	base32digest, err := utils.ToBase32(root)
-	if err != nil {
-		log.Errorf(c, "error encoding digest to base32: %v", err)
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
+	link := cid.NewCidV1(utils.TypeDAG, multihash.Multihash(root))
 
 	uiNode := UINode{
 		Value:        string(rawData),
@@ -267,7 +263,7 @@ func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawD
 		Links:        links,
 		URL:          currentURL,
 		ParentURL:    parentURL,
-		WWWURL:       fmt.Sprintf("http://%s.%s.%s/", base32digest, wwwSegment, domainName),
+		WWWURL:       fmt.Sprintf("http://%s.%s.%s/", link.String(), wwwSegment, domainName),
 	}
 	if node != nil {
 		c.HTML(http.StatusOK, "browse.tmpl", gin.H{

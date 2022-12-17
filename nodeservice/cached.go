@@ -32,7 +32,7 @@ type Cached struct {
 }
 
 func (s Cached) Get(ctx context.Context, h utils.Digest) ([]byte, error) {
-	ha := h.Array()
+	ha := utils.DigestToArray(h)
 	if b, ok := s.Cache[ha]; ok {
 		log.Debugf(ctx, "cache hit for %s", h)
 		return b, nil
@@ -45,7 +45,7 @@ func (s Cached) Get(ctx context.Context, h utils.Digest) ([]byte, error) {
 }
 
 func (s Cached) Has(ctx context.Context, h utils.Digest) (bool, error) {
-	ha := h.Array()
+	ha := utils.DigestToArray(h)
 	if _, ok := s.Cache[ha]; ok {
 		log.Debugf(ctx, "cache hit for %s", h)
 		return true, nil
@@ -58,7 +58,7 @@ func (s Cached) Has(ctx context.Context, h utils.Digest) (bool, error) {
 }
 
 func (s Cached) fillCache(ctx context.Context, h utils.Digest) error {
-	ha := h.Array()
+	ha := utils.DigestToArray(h)
 	req := api.GetRequest{
 		Items: []api.GetRequestItem{{
 			NodeID: utils.NodeID{

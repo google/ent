@@ -24,9 +24,8 @@ import (
 	"github.com/multiformats/go-multihash"
 )
 
-type Digest multihash.Multihash
-type DigestArray [32 + 4]byte
-type DigestString string
+type Digest = multihash.Multihash
+type DigestArray [64]byte
 
 const hash = multihash.SHA2_256
 
@@ -65,15 +64,12 @@ type NodeID struct {
 	Path Path
 }
 
-func (d Digest) String() string {
-	return multihash.Multihash(d).HexString()
-}
-
-func (d Digest) Array() DigestArray {
+// Convert to a fixed size array. Only to be used for in-memory caching.
+func DigestToArray(digest multihash.Multihash) DigestArray {
 	var a DigestArray
-	if len(d) != len(a) {
-		panic("invalid digest")
+	if len(digest) > len(a) {
+		panic(fmt.Sprintf("invalid digest length; got %d, want > %d", len(digest), len(a)))
 	}
-	copy(a[:], d[:])
+	copy(a[:], digest[:])
 	return a
 }

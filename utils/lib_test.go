@@ -37,3 +37,19 @@ func TestParseDigest(t *testing.T) {
 		t.Fatalf("digest string should be equal")
 	}
 }
+
+func TestDigestToArray(t *testing.T) {
+	digest, err := ParseDigest("12201f209f17903dc0310f9a0fe337d3a893193f20b4171895a74d0200d6019dedd6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	digestArray := [64]byte(DigestToArray(digest))
+	expectedDigestArray := [64]byte{
+		0x12, 0x20,
+		0x1f, 0x20, 0x9f, 0x17, 0x90, 0x3d, 0xc0, 0x31, 0x0f, 0x9a, 0x0f, 0xe3, 0x37, 0xd3, 0xa8, 0x93,
+		0x19, 0x3f, 0x20, 0xb4, 0x17, 0x18, 0x95, 0xa7, 0x4d, 0x02, 0x00, 0xd6, 0x01, 0x9d, 0xed, 0xd6,
+	}
+	if digestArray != expectedDigestArray {
+		t.Fatalf("digest array should be equal:\n%x\n%x", digestArray, expectedDigestArray)
+	}
+}

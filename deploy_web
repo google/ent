@@ -7,12 +7,12 @@ set -o pipefail
 
 export PROJECT=oak-ci
 # export PROJECT=ent-store
-export DOCKER_IMAGE=europe-docker.pkg.dev/$PROJECT/ent/ent-server:latest
+export DOCKER_IMAGE=europe-docker.pkg.dev/$PROJECT/ent/ent-web:latest
 
 export CGO_ENABLED=0
 
-go build ./cmd/ent-server
-docker build . --file=ent-server.Dockerfile --tag=$DOCKER_IMAGE
+go build ./cmd/ent-web
+docker build . --tag=$DOCKER_IMAGE
 docker push $DOCKER_IMAGE
 gcloud run deploy ent-server \
   --project=$PROJECT \

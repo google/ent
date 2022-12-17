@@ -13,19 +13,19 @@
             gomod2nix.overlays.default
           ];
         };
-        ent-server = pkgs.buildGoApplication {
-          name = "ent-plus";
-          src = ./.;
-        };
-        # ent-server = pkgs.hello;
-        # dockerImage = pkgs.dockerTools.buildImage {
-        #   name = "rust-nix-blog";
-        #   config = { Cmd = [ "${ent-server}/bin/rust_nix_blog" ]; };
+        # ent-server = pkgs.buildGoApplication {
+        #   name = "ent-plus";
+        #   src = ./.;
         # };
+        ent-server = pkgs.hello;
+        ent-server-docker = pkgs.dockerTools.buildImage {
+          name = "ent-server";
+          config = { Cmd = [ "${ent-server}/bin/rust_nix_blog" ]; };
+        };
       in {
         packages = {
           ent-server = ent-server;
-          # dockerImage = dockerImage;
+          ent-server-docker = ent-server-docker;
         };
         defaultPackage = ent-server;
         devShell = 

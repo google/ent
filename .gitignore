@@ -23,5 +23,6 @@
 
 /ent
 /ent-server
+/ent-web
 /.direnv
 /result

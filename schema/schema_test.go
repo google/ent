@@ -23,6 +23,8 @@ import (
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/utils"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multihash"
 )
 
 func TestGetString(t *testing.T) {
@@ -83,11 +85,11 @@ func TestGetStruct(t *testing.T) {
 		t.Fatalf("failed to put string: %v", err)
 	}
 	node := &utils.DAGNode{
-		Links: []utils.Link{
-			{Digest: uintFieldDigest},
-			{Digest: stringFieldDigest},
-			{Digest: uintFieldDigest},
-			{Digest: uintFieldDigest},
+		Links: []cid.Cid{
+			cid.NewCidV1(cid.Raw, multihash.Multihash(uintFieldDigest)),
+			cid.NewCidV1(cid.Raw, multihash.Multihash(stringFieldDigest)),
+			cid.NewCidV1(cid.Raw, multihash.Multihash(uintFieldDigest)),
+			cid.NewCidV1(cid.Raw, multihash.Multihash(uintFieldDigest)),
 		},
 	}
 	nodeBytes, err := utils.SerializeDAGNode(node)

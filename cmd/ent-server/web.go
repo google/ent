@@ -32,7 +32,7 @@ func webGetHandler(c *gin.Context) {
 	accessItem := &LogItemGet{
 		LogItem: BaseLogItem(c),
 		Source:  SourceWeb,
-		APIKey:  "www",
+		// TODO: UserID
 	}
 	defer LogGet(ctx, accessItem)
 

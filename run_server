@@ -5,7 +5,6 @@ set -o nounset
 set -o xtrace
 set -o pipefail
 
-export BIGQUERY_DATASET=access_logs
-export DOMAIN_NAME=localhost:27333
-
-go run ./cmd/ent-server/*.go
+export CGO_ENABLED=0
+go build github.com/google/ent/cmd/ent-server
+./ent-server -config=ent-server.toml

@@ -1,0 +1,16 @@
+listenAddress = ":27333"
+domainName = "localhost:27333"
+
+bigqueryEnabled = false
+bigqueryDataset = "access_logs"
+
+cloudStorageEnabled = false
+
+ginMode = "debug"
+
+[[users]]
+ID = 1
+Name = "user"
+APIKey = "xxx"
+CanRead = true
+CanWrite = true

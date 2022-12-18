@@ -8,4 +8,4 @@ set -o pipefail
 export BIGQUERY_DATASET=access_logs
 export DOMAIN_NAME=localhost:27333
 
-go run ./cmd/ent-web/*.go
+go run github.com/google/ent/cmd/ent-web -config=ent-web.toml

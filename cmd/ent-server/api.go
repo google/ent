@@ -37,12 +37,18 @@ func apiGetHandler(c *gin.Context) {
 	defer LogGet(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
+	user := apiKeyToUser[apiKey]
+	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	if !user.CanRead {
+		log.Warningf(ctx, "user %d does not have read permission", user.ID)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+	accessItem.UserID = user.ID
 
 	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)
@@ -80,12 +86,18 @@ func apiPutHandler(c *gin.Context) {
 	defer LogPut(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readWriteAPIKey {
+	user := apiKeyToUser[apiKey]
+	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	if !user.CanWrite {
+		log.Warningf(ctx, "user %d does not have write permission", user.ID)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+	accessItem.UserID = user.ID
 
 	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)

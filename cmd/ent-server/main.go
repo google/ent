@@ -18,14 +18,15 @@ package main
 import (
 	"context"
 	"encoding/base32"
+	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/BurntSushi/toml"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/ent/api"
@@ -46,8 +47,7 @@ var (
 	enableMemcache = false
 	enableBigquery = false
 
-	readAPIKey      = ""
-	readWriteAPIKey = ""
+	apiKeyToUser = map[string]*User{}
 )
 
 const (
@@ -56,6 +56,8 @@ const (
 )
 
 var domainName = "localhost:8088"
+
+var configPath = flag.String("config", "", "path to config file")
 
 type UINode struct {
 	Kind         string
@@ -92,33 +94,42 @@ func hostSegments(host string) []string {
 	}
 }
 
-func main() {
-	ctx := context.Background()
-
-	domainNameEnv := os.Getenv("DOMAIN_NAME")
-	if domainNameEnv != "" {
-		domainName = domainNameEnv
+func readConfig() Config {
+	config := Config{}
+	_, err := toml.DecodeFile(*configPath, &config)
+	if err != nil {
+		panic(err)
 	}
+	return config
+}
+
+func main() {
+	flag.Parse()
+
+	ctx := context.Background()
+	if *configPath == "" {
+		log.Errorf(ctx, "must specify config")
+		return
+	}
+	log.Infof(ctx, "loading config from %q", *configPath)
+	config := readConfig()
+	log.Infof(ctx, "loaded config: %#v", config)
+
+	domainName = config.DomainName
 	log.Infof(ctx, "domain name: %s", domainName)
 
-	if os.Getenv("ENABLE_MEMCACHE") != "" {
+	if config.MemcacheEnabled {
 		enableMemcache = true
 		log.Infof(ctx, "memcache enabled")
 	} else {
 		log.Infof(ctx, "memcache disabled")
 	}
 
-	readAPIKey = os.Getenv("READ_API_KEY")
-	if readAPIKey != "" {
-		log.Infof(ctx, "read API key: %q", readAPIKey)
+	for _, user := range config.Users {
+		apiKeyToUser[user.APIKey] = &user
 	}
 
-	readWriteAPIKey = os.Getenv("READ_WRITE_API_KEY")
-	if readWriteAPIKey != "" {
-		log.Infof(ctx, "read write API key: %q", readWriteAPIKey)
-	}
-
-	if os.Getenv("ENABLE_BIGQUERY") != "" {
+	if config.BigqueryEnabled {
 		enableBigquery = true
 		log.Infof(ctx, "bigquery enabled")
 	} else {
@@ -127,8 +138,12 @@ func main() {
 
 	var ds datastore.DataStore
 
-	objectsBucketName := os.Getenv("CLOUD_STORAGE_BUCKET")
-	if objectsBucketName != "" {
+	if config.CloudStorageEnabled {
+		objectsBucketName := config.CloudStorageBucket
+		if objectsBucketName == "" {
+			log.Errorf(ctx, "must specify Cloud Storage bucket name")
+			return
+		}
 		log.Infof(ctx, "using Cloud Storage bucket: %q", objectsBucketName)
 		storageClient, err := storage.NewClient(ctx)
 		if err != nil {
@@ -146,14 +161,14 @@ func main() {
 		}
 	}
 
-	if enableMemcache {
+	if config.MemcacheEnabled {
 		ds = datastore.Memcache{
 			Inner: ds,
 		}
 	}
 
-	if enableBigquery {
-		bigqueryDataset := os.Getenv("BIGQUERY_DATASET")
+	if config.BigqueryEnabled {
+		bigqueryDataset := config.BigqueryDataset
 		log.Infof(ctx, "bigquery dataset: %q", bigqueryDataset)
 		InitBigquery(ctx, bigqueryDataset)
 	}
@@ -163,10 +178,11 @@ func main() {
 	}
 
 	router := gin.Default()
+	gin.SetMode(config.GinMode)
 
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	router.Use(cors.New(config))
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowAllOrigins = true
+	router.Use(cors.New(corsConfig))
 	/*
 		router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 			ctx := appengine.NewContext(param.Request)
@@ -190,14 +206,8 @@ func main() {
 
 	router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = fmt.Sprintf("%d", defaultPort)
-		log.Infof(ctx, "Defaulting to port %s", port)
-	}
-
 	s := &http.Server{
-		Addr:           ":" + port,
+		Addr:           config.ListenAddress,
 		Handler:        h2c.NewHandler(router, &http2.Server{}),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -397,8 +407,8 @@ func renderHandler(c *gin.Context) {
 	LogGet(ctx, &LogItemGet{
 		LogItem: BaseLogItem(c),
 		Source:  SourceWeb,
-		APIKey:  "www",
-		Digest:  []string{string(target)},
+		// TODO: UserID
+		Digest: []string{string(target)},
 	})
 
 	c.Header("ent-digest", string(target))

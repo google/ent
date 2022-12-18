@@ -20,7 +20,7 @@ type LogItem struct {
 
 type LogItemGet struct {
 	LogItem
-	APIKey   string
+	UserID   uint64
 	Source   string
 	Digest   []string
 	Found    []string
@@ -29,7 +29,7 @@ type LogItemGet struct {
 
 type LogItemPut struct {
 	LogItem
-	APIKey     string
+	UserID     uint64
 	Source     string
 	Digest     []string
 	Created    []string

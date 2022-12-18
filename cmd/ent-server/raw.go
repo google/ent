@@ -36,12 +36,18 @@ func rawGetHandler(c *gin.Context) {
 	defer LogGet(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readAPIKey && apiKey != readWriteAPIKey {
+	user := apiKeyToUser[apiKey]
+	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	if !user.CanRead {
+		log.Warningf(ctx, "user %d does not have read permission", user.ID)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+	accessItem.UserID = user.ID
 
 	digest, err := utils.ParseDigest(c.Param("digest"))
 	if err != nil {
@@ -76,12 +82,18 @@ func rawPutHandler(c *gin.Context) {
 	defer LogPut(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
-	accessItem.APIKey = apiKey
-	if apiKey != readWriteAPIKey {
+	user := apiKeyToUser[apiKey]
+	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	if !user.CanWrite {
+		log.Warningf(ctx, "user %d does not have write permission", user.ID)
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+	accessItem.UserID = user.ID
 
 	nodeRaw, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {

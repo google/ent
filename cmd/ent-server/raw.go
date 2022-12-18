@@ -23,11 +23,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
-	"google.golang.org/appengine/v2"
 )
 
 func rawGetHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
+	ctx := c
 
 	accessItem := &LogItemGet{
 		LogItem: BaseLogItem(c),
@@ -73,7 +72,7 @@ func rawGetHandler(c *gin.Context) {
 }
 
 func rawPutHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
+	ctx := c
 
 	accessItem := &LogItemPut{
 		LogItem: BaseLogItem(c),

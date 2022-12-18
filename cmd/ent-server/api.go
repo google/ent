@@ -24,12 +24,10 @@ import (
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
-	"google.golang.org/appengine/v2"
 )
 
 func apiGetHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
-
+	ctx := c
 	accessItem := &LogItemGet{
 		LogItem: BaseLogItem(c),
 		Source:  SourceAPI,
@@ -77,7 +75,7 @@ func apiGetHandler(c *gin.Context) {
 }
 
 func apiPutHandler(c *gin.Context) {
-	ctx := appengine.NewContext(c.Request)
+	ctx := c
 
 	accessItem := &LogItemPut{
 		LogItem: BaseLogItem(c),

@@ -183,13 +183,6 @@ func main() {
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowAllOrigins = true
 	router.Use(cors.New(corsConfig))
-	/*
-		router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-			ctx := appengine.NewContext(param.Request)
-			log.Infof(ctx, "%s", param.ErrorMessage)
-			return "\n"
-		}))
-	*/
 
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false

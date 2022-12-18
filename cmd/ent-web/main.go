@@ -32,7 +32,6 @@ import (
 	"github.com/multiformats/go-multihash"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/appengine/v2"
 )
 
 const (
@@ -44,9 +43,6 @@ var domainName = "localhost:27334"
 
 func main() {
 	ctx := context.Background()
-	if appengine.IsAppEngine() {
-		ctx = appengine.BackgroundContext()
-	}
 
 	router := gin.Default()
 	router.LoadHTMLGlob("templates/*")

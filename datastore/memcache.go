@@ -3,18 +3,20 @@ package datastore
 import (
 	"context"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/google/ent/log"
-	"google.golang.org/appengine/v2/memcache"
 )
 
 type Memcache struct {
 	Inner DataStore
+	RDB   redis.Client
 }
 
 func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
-	item, err := memcache.Get(ctx, name)
+	cmd := s.RDB.Get(ctx, name)
+	item, err := cmd.Bytes()
 	if err != nil {
-		if err != memcache.ErrCacheMiss {
+		if err != redis.Nil {
 			log.Errorf(ctx, "error getting %q from memcache: %v", name, err)
 		}
 		b, err := s.Inner.Get(ctx, name)
@@ -25,7 +27,7 @@ func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {
 		return b, nil
 	}
 	log.Infof(ctx, "got %q from memcache", name)
-	return item.Value, nil
+	return item, nil
 }
 
 func (s Memcache) Put(ctx context.Context, name string, value []byte) error {
@@ -42,10 +44,7 @@ func (s Memcache) Has(ctx context.Context, name string) (bool, error) {
 }
 
 func (s Memcache) TrySet(ctx context.Context, name string, value []byte) {
-	err := memcache.Set(ctx, &memcache.Item{
-		Key:   name,
-		Value: value,
-	})
+	err := s.RDB.Set(ctx, name, value, 0)
 	if err != nil {
 		log.Errorf(ctx, "error adding %q to memcache: %v", name, err)
 	} else {

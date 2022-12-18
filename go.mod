@@ -15,6 +15,7 @@ require (
 	github.com/go-openapi/runtime v0.23.3
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-playground/validator/v10 v10.11.0 // indirect
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
 	github.com/in-toto/in-toto-golang v0.3.4-0.20211211042327-af1f9fb822bf
 	github.com/ipfs/go-cid v0.3.2
@@ -25,8 +26,7 @@ require (
 	github.com/sigstore/rekor v0.6.0
 	github.com/sigstore/sigstore v1.2.1-0.20220401110139-0e610e39782f
 	github.com/spf13/cobra v1.4.0
-	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9
+	golang.org/x/net v0.0.0-20220708220712-1185a9018129
 	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
 	google.golang.org/api v0.84.0
-	google.golang.org/appengine/v2 v2.0.2-0.20220105214307-da036ec7cbbf
 )

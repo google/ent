@@ -29,6 +29,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/ent/api"
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/log"
@@ -118,7 +119,7 @@ func main() {
 	domainName = config.DomainName
 	log.Infof(ctx, "domain name: %s", domainName)
 
-	if config.MemcacheEnabled {
+	if config.RedisEnabled {
 		enableMemcache = true
 		log.Infof(ctx, "memcache enabled")
 	} else {
@@ -161,9 +162,19 @@ func main() {
 		}
 	}
 
-	if config.MemcacheEnabled {
-		ds = datastore.Memcache{
-			Inner: ds,
+	if config.RedisEnabled {
+		log.Infof(ctx, "using Redis: %q", config.RedisEndpoint)
+		rdb := redis.NewClient(&redis.Options{
+			Addr: config.RedisEndpoint,
+		})
+		err := rdb.Set(ctx, "key", "value", 0).Err()
+		if err != nil {
+			log.Errorf(ctx, "could not connect to Redis: %v", err)
+		} else {
+			ds = datastore.Memcache{
+				Inner: ds,
+				RDB:   rdb,
+			}
 		}
 	}
 

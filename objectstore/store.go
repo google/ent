@@ -3,10 +3,13 @@ package objectstore
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/google/ent/datastore"
+	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
+	"github.com/multiformats/go-multihash"
 )
 
 type Store struct {
@@ -16,7 +19,18 @@ type Store struct {
 func (s Store) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	b, err := s.Inner.Get(ctx, digest.String())
 	if err != nil {
-		return nil, err
+		decodedDigest, err := multihash.Decode(digest)
+		if err == nil && decodedDigest.Code == multihash.SHA2_256 {
+			oldDigest := "sha256:" + hex.EncodeToString(decodedDigest.Digest)
+			log.Infof(ctx, "decoded digest: %v", decodedDigest)
+			log.Infof(ctx, "old digest: %v", oldDigest)
+			b, err = s.Inner.Get(ctx, oldDigest)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 	actualDigest := utils.ComputeDigest(b)
 	if !bytes.Equal(actualDigest, digest) {

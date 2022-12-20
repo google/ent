@@ -9,7 +9,7 @@ import (
 
 type Memcache struct {
 	Inner DataStore
-	RDB   redis.Client
+	RDB   *redis.Client
 }
 
 func (s Memcache) Get(ctx context.Context, name string) ([]byte, error) {

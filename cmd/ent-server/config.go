@@ -20,7 +20,8 @@ type Config struct {
 
 	DomainName string
 
-	MemcacheEnabled bool
+	RedisEnabled  bool
+	RedisEndpoint string
 
 	BigqueryEnabled bool
 	BigqueryDataset string

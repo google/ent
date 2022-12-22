@@ -39,22 +39,25 @@ func (s Multiplex) Get(ctx context.Context, digest utils.Digest) ([]byte, error)
 			log.Infof(ctx, "object %s not found in %s", digest, ss.Name)
 			continue
 		} else if err != nil {
-			log.Errorf(ctx, "error fetching from remote %q: %v", ss.Name, err)
+			log.Errorf(ctx, "error fetching (get %q) from remote %q: %v", digest, ss.Name, err)
 			continue
 		}
 		log.Infof(ctx, "fetched from remote %q", ss.Name)
 		return b, nil
 	}
-	return nil, fmt.Errorf("not found")
+	return nil, ErrNotFound
 }
 
 func (s Multiplex) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	for _, ss := range s.Inner {
 		b, err := ss.ObjectGetter.Has(ctx, digest)
 		if err != nil {
+			log.Errorf(ctx, "error fetching (has %q) from remote %q: %v", digest, ss.Name, err)
 			continue
 		}
-		return b, nil
+		if b {
+			return b, nil
+		}
 	}
 	return false, nil
 }

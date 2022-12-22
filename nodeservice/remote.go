@@ -34,6 +34,10 @@ type Remote struct {
 	APIKey string
 }
 
+const (
+	APIKeyHeader = "x-api-key"
+)
+
 var (
 	ErrNotFound = fmt.Errorf("not found")
 )
@@ -68,7 +72,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpReq.Header.Set(APIKeyHeader, s.APIKey)
 	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return nil, err
@@ -118,7 +122,7 @@ func (s Remote) GetNodes(ctx context.Context, req api.GetRequest) (api.GetRespon
 	if err != nil {
 		return api.GetResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpReq.Header.Set(APIKeyHeader, s.APIKey)
 	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return api.GetResponse{}, fmt.Errorf("error sending request: %w", err)
@@ -147,7 +151,7 @@ func (s Remote) PutNodes(ctx context.Context, req api.PutRequest) (api.PutRespon
 	if err != nil {
 		return api.PutResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpReq.Header.Set(APIKeyHeader, s.APIKey)
 	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		return api.PutResponse{}, fmt.Errorf("error sending request: %w", err)
@@ -180,7 +184,7 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	httpReq.Header.Set("x-api-key", s.APIKey)
+	httpReq.Header.Set(APIKeyHeader, s.APIKey)
 	httpRes, err := DoRequest(httpReq)
 	if err != nil {
 		log.Errorf(ctx, "error sending request: %v", err)

@@ -31,7 +31,13 @@ type Config struct {
 
 	GinMode string
 
+	Remotes []Remote
+
 	Users []User
+}
+
+type Remote struct {
+	Name string
 }
 
 type User struct {

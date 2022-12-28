@@ -51,6 +51,15 @@ func ParseDigest(s string) (Digest, error) {
 	}
 }
 
+func DigestToHumanString(d Digest) string {
+	// TODO: Check digest type.
+	m, err := multihash.Decode(d)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("sha256:%s", hex.EncodeToString(m.Digest))
+}
+
 func ComputeDigest(b []byte) Digest {
 	d, err := multihash.Sum(b, hash, -1)
 	if err != nil {

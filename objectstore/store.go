@@ -3,7 +3,6 @@ package objectstore
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/google/ent/datastore"
@@ -21,7 +20,7 @@ func (s Store) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	if err != nil {
 		decodedDigest, err := multihash.Decode(digest)
 		if err == nil && decodedDigest.Code == multihash.SHA2_256 {
-			oldDigest := "sha256:" + hex.EncodeToString(decodedDigest.Digest)
+			oldDigest := utils.DigestToHumanString(digest)
 			log.Infof(ctx, "decoded digest: %v", decodedDigest)
 			log.Infof(ctx, "old digest: %v", oldDigest)
 			b, err = s.Inner.Get(ctx, oldDigest)

@@ -36,7 +36,7 @@ type IndexEntry struct {
 // Split the digest into its prefix, and then two character chunks, separated by slashes, so that
 // each directory contains at most 255 entries.
 func DigestToPath(digest utils.Digest) string {
-	s := strings.Split(string(digest.String()), ":")
+	s := strings.Split(utils.DigestToHumanString(digest), ":")
 	out := s[0]
 	for i := 0; i < len(s[1])/2; i++ {
 		out += "/" + s[1][i*2:(i+1)*2]

@@ -104,7 +104,7 @@ func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
 			Name:         remote.Name,
 			ObjectGetter: getObjectGetter(remote)})
 	}
-	return nodeservice.Multiplex{
+	return nodeservice.Sequence{
 		Inner: inner,
 	}
 }

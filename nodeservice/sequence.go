@@ -23,7 +23,7 @@ import (
 	"github.com/google/ent/utils"
 )
 
-type Multiplex struct {
+type Sequence struct {
 	Inner []Inner
 }
 
@@ -32,7 +32,7 @@ type Inner struct {
 	ObjectGetter ObjectGetter
 }
 
-func (s Multiplex) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
+func (s Sequence) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	for _, ss := range s.Inner {
 		b, err := ss.ObjectGetter.Get(ctx, digest)
 		if err == ErrNotFound {
@@ -48,7 +48,7 @@ func (s Multiplex) Get(ctx context.Context, digest utils.Digest) ([]byte, error)
 	return nil, ErrNotFound
 }
 
-func (s Multiplex) Has(ctx context.Context, digest utils.Digest) (bool, error) {
+func (s Sequence) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	for _, ss := range s.Inner {
 		b, err := ss.ObjectGetter.Has(ctx, digest)
 		if err != nil {
@@ -62,7 +62,7 @@ func (s Multiplex) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	return false, nil
 }
 
-func (s Multiplex) Put(ctx context.Context, b []byte) (utils.Digest, error) {
+func (s Sequence) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	// return s.Inner[0].Put(ctx, b)
 	return utils.Digest{}, fmt.Errorf("not implemented")
 }

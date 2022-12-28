@@ -31,21 +31,6 @@ const (
 	indexBasePath = "https://raw.githubusercontent.com/tiziano88/ent-index/main"
 )
 
-type Config struct {
-	Remotes []Remote
-}
-
-// TODO: auth
-
-type Remote struct {
-	Name      string
-	URL       string
-	Index     bool
-	APIKey    string `toml:"api_key"`
-	Write     bool
-	ReadGroup uint
-}
-
 func readConfig() Config {
 	s, err := os.UserConfigDir()
 	if err != nil {

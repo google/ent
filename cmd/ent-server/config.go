@@ -16,6 +16,8 @@
 package main
 
 type Config struct {
+	ProjectName string
+
 	ListenAddress string
 
 	DomainName string

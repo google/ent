@@ -34,6 +34,11 @@ func apiGetHandler(c *gin.Context) {
 	}
 	defer LogGet(ctx, accessItem)
 
+	log.Debugf(ctx, "trace: %v", c.Value("trace"))
+	log.Debugf(ctx, "traceparent: %v", c.Value("traceparent"))
+	log.Debugf(ctx, "trace_id: %v", c.Value("trace_id"))
+	log.Debugf(ctx, "headers: %v", c.Request.Header)
+
 	apiKey := getAPIKey(c)
 	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
 	user := apiKeyToUser[apiKey]

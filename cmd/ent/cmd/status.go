@@ -117,7 +117,7 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-	eimpl, err := types.NewEntry(pe)
+	eimpl, err := types.CreateVersionedEntry(pe)
 	if err != nil {
 		return nil, err
 	}
@@ -130,9 +130,9 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 	)
 	switch ei := eimpl.(type) {
 	case *rekord.V001Entry:
-		publicKey = ei.RekordObj.Signature.PublicKey.Content
+		publicKey = []byte(*ei.RekordObj.Signature.PublicKey.Content)
 		data = ei.RekordObj.Data.Content
-		sig = ei.RekordObj.Signature.Content
+		sig = []byte(*ei.RekordObj.Signature.Content)
 	case *hashedrekord.V001Entry:
 		publicKey = ei.HashedRekordObj.Signature.PublicKey.Content
 		data, err = hex.DecodeString(*ei.HashedRekordObj.Data.Hash.Value)
@@ -182,8 +182,12 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 			return nil, errors.New("no certs found in pem tlog")
 		}
 
+		r, err := fulcio.GetRoots()
+		if err != nil {
+			return nil, err
+		}
 		co := &cosign.CheckOpts{
-			RootCerts: fulcio.GetRoots(),
+			RootCerts: r,
 			// CertOidcIssuer: "https://token.actions.githubusercontent.com",
 			// CertOidcIssuer: "https://github.com/login/oauth",
 			// CertOidcIssuer: "https://accounts.google.com",
@@ -200,7 +204,7 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 				continue
 			}
 			log.Printf("verified signature")
-			log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
+			// log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
 			log.Printf("cert OIDC subject: %q", signature.CertSubject(c))
 		}
 	}

@@ -29,7 +29,8 @@ type Config struct {
 	CloudStorageEnabled bool
 	CloudStorageBucket  string
 
-	GinMode string
+	GinMode  string
+	LogLevel string
 
 	Remotes []Remote
 

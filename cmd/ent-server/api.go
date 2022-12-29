@@ -35,12 +35,15 @@ func apiGetHandler(c *gin.Context) {
 	defer LogGet(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
 	user := apiKeyToUser[apiKey]
 	if user == nil {
-		log.Warningf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanRead {
 		log.Warningf(ctx, "user %d does not have read permission", user.ID)
 		c.AbortWithStatus(http.StatusForbidden)
@@ -55,6 +58,7 @@ func apiGetHandler(c *gin.Context) {
 	var res api.GetResponse
 	res.Items = make(map[string][]byte, len(req.Items))
 	for _, item := range req.Items {
+		log.Infof(ctx, "item root digest: %#v", item.NodeID.Root.Hash().String())
 		nodeID := item.NodeID
 		accessItem.Digest = append(accessItem.Digest, nodeID.Root.Hash().String())
 		blobs, err := fetchNodes(ctx, nodeID.Root, item.Depth)
@@ -74,6 +78,13 @@ func apiGetHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+func redact(s string) string {
+	if len(s) > 4 {
+		return s[:4] + "..."
+	}
+	return s
+}
+
 func apiPutHandler(c *gin.Context) {
 	ctx := c
 
@@ -84,12 +95,15 @@ func apiPutHandler(c *gin.Context) {
 	defer LogPut(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
 	user := apiKeyToUser[apiKey]
 	if user == nil {
-		log.Warningf(ctx, "invalid API key: %q", apiKey)
+		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanWrite {
 		log.Warningf(ctx, "user %d does not have write permission", user.ID)
 		c.AbortWithStatus(http.StatusForbidden)

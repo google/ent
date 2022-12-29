@@ -10,10 +10,18 @@ redisEndpoint = "10.51.202.235:6379"
 cloudStorageEnabled = false
 
 ginMode = "debug"
+logLevel = "debug"
 
 [[users]]
 ID = 1
 Name = "user"
-APIKey = "xxx"
+APIKey = "oAf1MTownkbSkMuCQVUIrNbS4GxKlBsDAQVKEihfajMoPiWreyhmtmVRVPVGOmJUJJAsfrYVtfVqBpGbX3BaZw=="
 CanRead = true
 CanWrite = true
+
+[[users]]
+ID = 2
+Name = "public"
+APIKey = ""
+CanRead = true
+CanWrite = false

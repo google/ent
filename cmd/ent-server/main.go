@@ -127,7 +127,12 @@ func main() {
 	}
 
 	for _, user := range config.Users {
-		apiKeyToUser[user.APIKey] = &user
+		// Must make a copy first, or else the map will point to the same.
+		u := user
+		apiKeyToUser[user.APIKey] = &u
+	}
+	for apiKey, user := range apiKeyToUser {
+		log.Infof(ctx, "user %q: %q %d", redact(apiKey), user.Name, user.ID)
 	}
 
 	if config.BigqueryEnabled {
@@ -217,7 +222,7 @@ func main() {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	log.Infof(ctx, "Running locally")
+	log.Infof(ctx, "server running")
 	log.Criticalf(ctx, "%v", s.ListenAndServe())
 }
 

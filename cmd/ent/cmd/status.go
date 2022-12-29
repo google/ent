@@ -82,7 +82,7 @@ func rekorStatus(digest utils.Digest) {
 		return
 	}
 	params := index.NewSearchIndexParams()
-	params.Query = &models.SearchIndex{Hash: string(digest)}
+	params.Query = &models.SearchIndex{Hash: utils.DigestToHumanString(digest)}
 	res, err := rc.Index.SearchIndex(params)
 	if err != nil {
 		log.Fatalf("could not search rekor index: %v", err)
@@ -225,7 +225,7 @@ func status(digest utils.Digest) {
 			if err != nil {
 				marker = color.RedString("✗")
 			}
-			c <- fmt.Sprintf("%s %s [%s]\n", color.YellowString(string(digest)), marker, remote.Name)
+			c <- fmt.Sprintf("%s %s [%s]\n", color.YellowString(digest.String()), marker, remote.Name)
 		}(remote, c)
 	}
 	for _, c := range s {

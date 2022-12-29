@@ -82,36 +82,42 @@ func InitBigquery(ctx context.Context, projectID string, dataset string) {
 }
 
 func ensureTable(ctx context.Context, name string, st interface{}) {
-	t, err := bigqueryDataset.Table(logsPutTable).Metadata(ctx)
+	table := bigqueryDataset.Table(name)
+
+	tableSchema, err := bigquery.InferSchema(st)
+	if err != nil {
+		log.Errorf(ctx, "could not infer schema: %v", err)
+		return
+	}
+	tableSchema = tableSchema.Relax()
+
+	tableMetadata, err := table.Metadata(ctx)
 	if err != nil {
 		log.Errorf(ctx, "could not get table metadata: %v", err)
-		tableSchema, err := bigquery.InferSchema(st)
-		if err != nil {
-			log.Errorf(ctx, "could not infer schema: %v", err)
-			return
-		}
-		tableSchema = tableSchema.Relax()
-		table := bigqueryDataset.Table(name)
 		err = table.Create(ctx, &bigquery.TableMetadata{
 			Name:   name,
 			Schema: tableSchema,
 		})
 		if err != nil {
 			log.Errorf(ctx, "could not create table %q: %v", name, err)
-			log.Infof(ctx, "trying to update table %q", name)
-			newMetadata, err := table.Update(ctx, bigquery.TableMetadataToUpdate{
-				Schema: tableSchema,
-			}, "")
-			if err != nil {
-				log.Errorf(ctx, "could not update table %q: %v", name, err)
-				return
-			}
-			log.Infof(ctx, "updated table %q: %+v", name, newMetadata)
 			return
 		}
 		log.Infof(ctx, "created table %q", name)
 	} else {
-		log.Infof(ctx, "table %q already exists: %+v", name, t)
+		log.Infof(ctx, "table %q already exists: %+v", name, tableMetadata)
+		if len(tableMetadata.Schema) == len(tableSchema) {
+			log.Infof(ctx, "table schema is up to date")
+			return
+		}
+		log.Infof(ctx, "table schema differs; trying to update table %q", name)
+		newMetadata, err := table.Update(ctx, bigquery.TableMetadataToUpdate{
+			Schema: tableSchema,
+		}, "")
+		if err != nil {
+			log.Errorf(ctx, "could not update table %q: %v", name, err)
+			return
+		}
+		log.Infof(ctx, "updated table %q: %+v", name, newMetadata)
 	}
 }
 

@@ -34,11 +34,6 @@ func apiGetHandler(c *gin.Context) {
 	}
 	defer LogGet(ctx, accessItem)
 
-	log.Debugf(ctx, "trace: %v", c.Value("trace"))
-	log.Debugf(ctx, "traceparent: %v", c.Value("traceparent"))
-	log.Debugf(ctx, "trace_id: %v", c.Value("trace_id"))
-	log.Debugf(ctx, "headers: %v", c.Request.Header)
-
 	apiKey := getAPIKey(c)
 	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
 	user := apiKeyToUser[apiKey]
@@ -54,7 +49,7 @@ func apiGetHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	accessItem.UserID = user.ID
+	accessItem.UserID = int64(user.ID)
 
 	var req api.GetRequest
 	json.NewDecoder(c.Request.Body).Decode(&req)
@@ -114,7 +109,7 @@ func apiPutHandler(c *gin.Context) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	accessItem.UserID = user.ID
+	accessItem.UserID = int64(user.ID)
 
 	var req api.PutRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)

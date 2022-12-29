@@ -14,9 +14,9 @@ var (
 	childLogger  *logging.Logger
 )
 
-func InitLog(projectName string) {
-	if projectName != "" {
-		client, err := logging.NewClient(context.Background(), "projects/"+projectName)
+func InitLog(projectID string) {
+	if projectID != "" {
+		client, err := logging.NewClient(context.Background(), "projects/"+projectID)
 		if err != nil {
 			panic(err)
 		}
@@ -35,12 +35,10 @@ func InitLog(projectName string) {
 
 func Log(ctx context.Context, entry logging.Entry) {
 	if gc, ok := ctx.(*gin.Context); ok {
-		log.Printf("gin context")
 		entry.HTTPRequest = &logging.HTTPRequest{
 			Request: gc.Request,
 		}
 	}
-	log.Printf("logrequest: %+v", entry)
 	if parentLogger != nil {
 		parentLogger.Log(entry)
 	} else {

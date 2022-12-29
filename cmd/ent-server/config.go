@@ -16,7 +16,7 @@
 package main
 
 type Config struct {
-	ProjectName string
+	ProjectID string
 
 	ListenAddress string
 
@@ -44,7 +44,7 @@ type Remote struct {
 }
 
 type User struct {
-	ID       uint64
+	ID       int64
 	Name     string
 	APIKey   string
 	CanRead  bool

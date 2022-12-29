@@ -35,7 +35,7 @@ type LogItem struct {
 
 type LogItemGet struct {
 	LogItem
-	UserID   uint64
+	UserID   int64
 	Source   string
 	Digest   []string
 	Found    []string
@@ -44,7 +44,7 @@ type LogItemGet struct {
 
 type LogItemPut struct {
 	LogItem
-	UserID     uint64
+	UserID     int64
 	Source     string
 	Digest     []string
 	Created    []string
@@ -62,7 +62,7 @@ const (
 
 var bigqueryDataset *bigquery.Dataset
 
-func InitBigquery(ctx context.Context, dataset string) {
+func InitBigquery(ctx context.Context, projectID string, dataset string) {
 	opts := []option.ClientOption{}
 	c, _ := ioutil.ReadFile("./credentials.json")
 	if len(c) > 0 {
@@ -71,7 +71,7 @@ func InitBigquery(ctx context.Context, dataset string) {
 	} else {
 		log.Infof(ctx, "using application default credentials")
 	}
-	bigqueryClient, err := bigquery.NewClient(ctx, bigquery.DetectProjectID, opts...)
+	bigqueryClient, err := bigquery.NewClient(ctx, projectID, opts...)
 	if err != nil {
 		log.Errorf(ctx, "could not create bigquery client: %v", err)
 	}
@@ -91,12 +91,22 @@ func ensureTable(ctx context.Context, name string, st interface{}) {
 			return
 		}
 		tableSchema = tableSchema.Relax()
-		err = bigqueryDataset.Table(name).Create(ctx, &bigquery.TableMetadata{
+		table := bigqueryDataset.Table(name)
+		err = table.Create(ctx, &bigquery.TableMetadata{
 			Name:   name,
 			Schema: tableSchema,
 		})
 		if err != nil {
-			log.Errorf(ctx, "could not create table: %v", err)
+			log.Errorf(ctx, "could not create table %q: %v", name, err)
+			log.Infof(ctx, "trying to update table %q", name)
+			newMetadata, err := table.Update(ctx, bigquery.TableMetadataToUpdate{
+				Schema: tableSchema,
+			}, "")
+			if err != nil {
+				log.Errorf(ctx, "could not update table %q: %v", name, err)
+				return
+			}
+			log.Infof(ctx, "updated table %q: %+v", name, newMetadata)
 			return
 		}
 		log.Infof(ctx, "created table %q", name)

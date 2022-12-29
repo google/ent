@@ -116,6 +116,8 @@ func main() {
 	config := readConfig()
 	log.Infof(ctx, "loaded config: %#v", config)
 
+	log.InitLog(config.ProjectID)
+
 	domainName = config.DomainName
 	log.Infof(ctx, "domain name: %s", domainName)
 
@@ -186,17 +188,15 @@ func main() {
 	if config.BigqueryEnabled {
 		bigqueryDataset := config.BigqueryDataset
 		log.Infof(ctx, "bigquery dataset: %q", bigqueryDataset)
-		InitBigquery(ctx, bigqueryDataset)
+		InitBigquery(ctx, config.ProjectID, config.BigqueryDataset)
 	}
-
-	log.InitLog(config.ProjectName)
 
 	blobStore = objectstore.Store{
 		Inner: ds,
 	}
 
-	router := gin.Default()
 	gin.SetMode(config.GinMode)
+	router := gin.Default()
 
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowAllOrigins = true

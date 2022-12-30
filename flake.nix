@@ -40,6 +40,8 @@
                 buildInputs = [
                     pkgs.go
                     pkgs.gopls
+                    pkgs.protobuf
+                    pkgs.protoc-gen-go
                 ];
               };
           }));

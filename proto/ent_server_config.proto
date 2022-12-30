@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package ent.server.config;
+
+option go_package = "github.com/ent";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message Config {
+    string project_id = 1;
+    string listen_address = 2;
+    string domain_name = 3;
+    Redis redis = 4;
+    BigQuery big_query = 5;
+    CloudStorage cloud_storage = 6;
+    string gin_mode = 7;
+    string log_level = 8;
+    repeated Remote remote = 9;
+    repeated User user = 10;
+}
+
+message Redis {
+    string endpoint = 1;
+}
+
+message BigQuery {
+    string dataset = 1;
+}
+
+message CloudStorage {
+    string bucket = 1;
+}
+
+message Remote {
+    string name = 1;
+}
+
+message User {
+    int64 id = 1;
+    string name = 2;
+    string api_key = 3;
+    bool can_read = 4;
+    bool can_write = 5;
+}

@@ -1,0 +1,6 @@
+listenAddress = ":27334"
+domainName = "localhost:27334"
+
+[[remotes]]
+name = 'ent-store'
+url = 'https://ent-server-62sa4xcfia-ew.a.run.app'

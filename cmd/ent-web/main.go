@@ -17,14 +17,14 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/gin-gonic/gin"
-	"github.com/google/ent/cmd/ent/cmd"
 	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
@@ -35,33 +35,47 @@ import (
 )
 
 const (
-	wwwSegment  = "www"
-	defaultPort = 27334
+	wwwSegment = "www"
 )
 
-var domainName = "localhost:27334"
+var (
+	domainName   string
+	objectGetter nodeservice.ObjectGetter
+)
+
+var configPath = flag.String("config", "", "path to config file")
 
 func main() {
+	flag.Parse()
+
 	ctx := context.Background()
+	if *configPath == "" {
+		log.Errorf(ctx, "must specify config")
+		return
+	}
+	log.Infof(ctx, "loading config from %q", *configPath)
+	config := readConfig()
+	log.Infof(ctx, "loaded config: %#v", config)
+
+	domainName = config.DomainName
+
+	log.InitLog(config.ProjectID)
+
+	objectGetter = getMultiplexObjectGetter(config)
 
 	router := gin.Default()
 	router.LoadHTMLGlob("templates/*")
 	router.GET("/*path", webGetHandler)
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = fmt.Sprintf("%d", defaultPort)
-		log.Infof(ctx, "Defaulting to port %s", port)
-	}
 
 	s := &http.Server{
-		Addr:           ":" + port,
+		Addr:           config.ListenAddress,
 		Handler:        h2c.NewHandler(router, &http2.Server{}),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	log.Infof(ctx, "Running locally")
+	log.Infof(ctx, "server running")
 	log.Criticalf(ctx, "%v", s.ListenAndServe())
 }
 
@@ -104,10 +118,9 @@ func webGetHandler(c *gin.Context) {
 	}
 
 	path := strings.Split(strings.TrimPrefix(c.Param("path"), "/"), "/")
-	og := cmd.GetObjectGetter()
 	log.Debugf(ctx, "root link: %s", rootLink.String())
 	log.Debugf(ctx, "path: %#v", path)
-	target, err := traverseString(ctx, og, rootLink, path)
+	target, err := traverseString(ctx, objectGetter, rootLink, path)
 	if err != nil {
 		log.Warningf(ctx, "could not traverse: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
@@ -115,7 +128,7 @@ func webGetHandler(c *gin.Context) {
 	}
 	log.Debugf(ctx, "target: %s", target.String())
 	c.Header("ent-digest", target.String())
-	nodeRaw, err := og.Get(ctx, utils.Digest(target.Hash()))
+	nodeRaw, err := objectGetter.Get(ctx, utils.Digest(target.Hash()))
 	if err != nil {
 		log.Warningf(ctx, "could not get blob %s: %s", target, err)
 		c.Abort()
@@ -231,5 +244,24 @@ func traverseString(ctx context.Context, og nodeservice.ObjectGetter, link cid.C
 		} else {
 			return link, nil
 		}
+	}
+}
+
+func readConfig() Config {
+	config := Config{}
+	_, err := toml.DecodeFile(*configPath, &config)
+	if err != nil {
+		panic(err)
+	}
+	return config
+}
+
+func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
+	inner := make([]nodeservice.Inner, 0)
+	for _, remote := range config.Remotes {
+		inner = append(inner, nodeservice.NewRemote(remote.Name, remote.URL, ""))
+	}
+	return nodeservice.Sequence{
+		Inner: inner,
 	}
 }

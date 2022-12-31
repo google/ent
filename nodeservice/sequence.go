@@ -32,6 +32,16 @@ type Inner struct {
 	ObjectGetter ObjectGetter
 }
 
+func NewRemote(name string, url string, apiKey string) Inner {
+	return Inner{
+		Name: name,
+		ObjectGetter: Remote{
+			APIURL: url,
+			APIKey: apiKey,
+		},
+	}
+}
+
 func (s Sequence) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	for _, ss := range s.Inner {
 		b, err := ss.ObjectGetter.Get(ctx, digest)

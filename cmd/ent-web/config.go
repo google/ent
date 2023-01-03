@@ -26,6 +26,7 @@ type Config struct {
 }
 
 type Remote struct {
-	Name string
-	URL  string
+	Name   string
+	URL    string
+	APIKey string
 }

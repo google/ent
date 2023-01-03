@@ -259,7 +259,7 @@ func readConfig() Config {
 func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
 	inner := make([]nodeservice.Inner, 0)
 	for _, remote := range config.Remotes {
-		inner = append(inner, nodeservice.NewRemote(remote.Name, remote.URL, ""))
+		inner = append(inner, nodeservice.NewRemote(remote.Name, remote.URL, remote.APIKey))
 	}
 	return nodeservice.Sequence{
 		Inner: inner,

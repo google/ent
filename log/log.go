@@ -6,12 +6,23 @@ import (
 	"log"
 
 	"cloud.google.com/go/logging"
+	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 )
+
+type Color func(format string, a ...interface{}) string
 
 var (
 	parentLogger *logging.Logger
 	childLogger  *logging.Logger
+
+	severityColor = map[logging.Severity]Color{
+		logging.Debug:    color.BlueString,
+		logging.Info:     color.GreenString,
+		logging.Warning:  color.YellowString,
+		logging.Error:    color.RedString,
+		logging.Critical: color.MagentaString,
+	}
 )
 
 func InitLog(projectID string) {
@@ -42,7 +53,8 @@ func Log(ctx context.Context, entry logging.Entry) {
 	if parentLogger != nil {
 		parentLogger.Log(entry)
 	} else {
-		log.Printf("[%s] %v", entry.Severity, entry.Payload)
+		color := severityColor[entry.Severity]
+		log.Printf("[%s] %v", color("%-7s", entry.Severity), entry.Payload)
 	}
 }
 

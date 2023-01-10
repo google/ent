@@ -40,6 +40,7 @@
                 buildInputs = [
                     pkgs.go
                     pkgs.gopls
+                    pkgs.just
                     pkgs.protobuf
                     pkgs.protoc-gen-go
                 ];

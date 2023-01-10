@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-set -o errexit
-set -o nounset
-set -o xtrace
-set -o pipefail
-
-go run github.com/google/ent/cmd/ent-web -config=ent-web.toml

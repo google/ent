@@ -132,6 +132,8 @@ func apiPutHandler(c *gin.Context) {
 		if exists {
 			log.Infof(ctx, "blob %q already exists", digest)
 			accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
+			// We count the blob as created, even though it already existed.
+			res.Digest = append(res.Digest, digest)
 			continue
 		}
 		digest1, err := blobStore.Put(ctx, blob)

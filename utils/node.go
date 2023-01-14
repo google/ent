@@ -168,6 +168,9 @@ func DecodeLink(b *bytes.Reader) (cid.Cid, error) {
 }
 
 func ParseDAGNode(b []byte) (*DAGNode, error) {
+	if len(b) < 16 {
+		return nil, fmt.Errorf("invalid DAGNode, too short: %d", len(b))
+	}
 	// https://fuchsia.dev/fuchsia-src/reference/fidl/language/wire-format#envelopes
 	log.Printf("ParseDAGNode: %x", b)
 	bytesNum := order.Uint64(b[0:8])

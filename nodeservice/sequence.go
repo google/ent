@@ -18,6 +18,7 @@ package nodeservice
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
@@ -44,6 +45,7 @@ func NewRemote(name string, url string, apiKey string) Inner {
 
 func (s Sequence) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	for _, ss := range s.Inner {
+		start := time.Now()
 		b, err := ss.ObjectGetter.Get(ctx, digest)
 		if err == ErrNotFound {
 			log.Infof(ctx, "object %s not found in %s", digest, ss.Name)
@@ -52,7 +54,9 @@ func (s Sequence) Get(ctx context.Context, digest utils.Digest) ([]byte, error) 
 			log.Errorf(ctx, "error fetching (get %q) from remote %q: %v", digest, ss.Name, err)
 			continue
 		}
-		log.Infof(ctx, "fetched from remote %q", ss.Name)
+		end := time.Now()
+		elapsed := end.Sub(start)
+		log.Infof(ctx, "fetched %q from remote %q in %v", digest, ss.Name, elapsed)
 		return b, nil
 	}
 	return nil, ErrNotFound

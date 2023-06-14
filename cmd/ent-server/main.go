@@ -220,8 +220,8 @@ func main() {
 	s := &http.Server{
 		Addr:           config.ListenAddress,
 		Handler:        h2c.NewHandler(router, &http2.Server{}),
-		ReadTimeout:    60 * time.Second,
-		WriteTimeout:   60 * time.Second,
+		ReadTimeout:    600 * time.Second,
+		WriteTimeout:   600 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Infof(ctx, "server running")

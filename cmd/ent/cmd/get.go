@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ import (
 var urlFlag string
 
 func get(digest utils.Digest) ([]byte, error) {
-	config := readConfig()
+	config := config.ReadConfig()
 	objectGetter := getMultiplexObjectGetter(config)
 	return objectGetter.Get(context.Background(), digest)
 }

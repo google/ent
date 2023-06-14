@@ -18,6 +18,7 @@ package cmd
 import (
 	"log"
 
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
@@ -33,7 +34,7 @@ var printSchemaCmd = &cobra.Command{
 			return
 		}
 
-		config := readConfig()
+		config := config.ReadConfig()
 		o := getMultiplexObjectGetter(config)
 		if err != nil {
 			log.Fatalf("could not parse schema digest: %v", err)

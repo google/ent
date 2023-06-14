@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	pb "github.com/google/ent/proto"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 )
@@ -34,19 +35,24 @@ func ParseDigest(s string) (Digest, error) {
 	if err == nil {
 		return Digest(digest), nil
 	} else {
-		if strings.HasPrefix(s, "sha256:") {
-			s = strings.TrimPrefix(s, "sha256:")
-			ss, err := hex.DecodeString(s)
-			if err != nil {
-				return nil, err
-			}
-			digest, err = multihash.Encode(ss, multihash.SHA2_256)
-			if err != nil {
-				return nil, err
-			}
-			return Digest(digest), err
+		digest, err := multihash.FromB58String(s)
+		if err == nil {
+			return Digest(digest), nil
 		} else {
-			return nil, fmt.Errorf("invalid digest: %v", err)
+			if strings.HasPrefix(s, "sha256:") {
+				s = strings.TrimPrefix(s, "sha256:")
+				ss, err := hex.DecodeString(s)
+				if err != nil {
+					return nil, err
+				}
+				digest, err = multihash.Encode(ss, multihash.SHA2_256)
+				if err != nil {
+					return nil, err
+				}
+				return Digest(digest), err
+			} else {
+				return nil, fmt.Errorf("invalid digest: %v", err)
+			}
 		}
 	}
 }
@@ -58,6 +64,25 @@ func DigestToHumanString(d Digest) string {
 		panic(err)
 	}
 	return fmt.Sprintf("sha256:%s", hex.EncodeToString(m.Digest))
+}
+
+func DigestToProto(d Digest) *pb.Digest {
+	m, err := multihash.Decode(d)
+	if err != nil {
+		panic(err)
+	}
+	return &pb.Digest{
+		Code:   m.Code,
+		Digest: m.Digest,
+	}
+}
+
+func DigestFromProto(d *pb.Digest) Digest {
+	b, err := multihash.Encode(d.Digest, d.Code)
+	if err != nil {
+		panic(err)
+	}
+	return Digest(b)
 }
 
 func ComputeDigest(b []byte) Digest {

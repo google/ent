@@ -30,6 +30,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/go-openapi/runtime"
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/utils"
 	"github.com/in-toto/in-toto-golang/in_toto"
 	"github.com/sigstore/cosign/cmd/cosign/cli/fulcio"
@@ -213,12 +214,12 @@ func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
 }
 
 func status(digest utils.Digest) {
-	config := readConfig()
+	c := config.ReadConfig()
 	s := []<-chan string{}
-	for _, remote := range config.Remotes {
+	for _, remote := range c.Remotes {
 		c := make(chan string)
 		s = append(s, c)
-		go func(remote Remote, c chan<- string) {
+		go func(remote config.Remote, c chan<- string) {
 			objectGetter := getObjectGetter(remote)
 			marker := color.GreenString("✓")
 			_, err := objectGetter.Get(context.Background(), digest)

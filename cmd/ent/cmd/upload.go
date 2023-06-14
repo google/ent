@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -89,7 +90,7 @@ func upload(planFilename string) error {
 	}
 	log.Printf("parsed plan: %#v", plan)
 
-	config := readConfig()
+	config := config.ReadConfig()
 	remote := config.Remotes[0]
 	if remoteFlag != "" {
 		var err error

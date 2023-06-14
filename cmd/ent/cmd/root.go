@@ -17,61 +17,24 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path/filepath"
 
-	"github.com/BurntSushi/toml"
+	_map "github.com/google/ent/cmd/ent/cmd/map"
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/nodeservice"
 	"github.com/spf13/cobra"
 )
 
-const (
-	indexBasePath = "https://raw.githubusercontent.com/tiziano88/ent-index/main"
-)
-
-func readConfig() Config {
-	s, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatalf("could not load config dir: %v", err)
-	}
-	s = filepath.Join(s, "ent.toml")
-	f, err := ioutil.ReadFile(s)
-	if err != nil {
-		log.Printf("could not read config: %v", err)
-		return defaultConfig()
-	}
-	config := Config{}
-	err = toml.Unmarshal(f, &config)
-	if err != nil {
-		log.Fatalf("could not parse config: %v", err)
-	}
-	return config
-}
-
-func defaultConfig() Config {
-	return Config{
-		Remotes: []Remote{
-			{
-				Name:  "default",
-				URL:   indexBasePath,
-				Index: true,
-			},
-		},
-	}
-}
-
-func getRemote(config Config, remoteName string) (Remote, error) {
-	for _, remote := range config.Remotes {
+func getRemote(c config.Config, remoteName string) (config.Remote, error) {
+	for _, remote := range c.Remotes {
 		if remote.Name == remoteName {
 			return remote, nil
 		}
 	}
-	return Remote{}, fmt.Errorf("remote %q not found", remoteName)
+	return config.Remote{}, fmt.Errorf("remote %q not found", remoteName)
 }
 
-func getObjectStore(remote Remote) nodeservice.NodeService {
+func getObjectStore(remote config.Remote) nodeservice.NodeService {
 	if remote.Write {
 		return nodeservice.Remote{
 			APIURL: remote.URL,
@@ -82,9 +45,9 @@ func getObjectStore(remote Remote) nodeservice.NodeService {
 	}
 }
 
-func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
+func getMultiplexObjectGetter(c config.Config) nodeservice.ObjectGetter {
 	inner := make([]nodeservice.Inner, 0)
-	for _, remote := range config.Remotes {
+	for _, remote := range c.Remotes {
 		inner = append(inner, nodeservice.Inner{
 			Name:         remote.Name,
 			ObjectGetter: getObjectGetter(remote)})
@@ -94,7 +57,7 @@ func getMultiplexObjectGetter(config Config) nodeservice.ObjectGetter {
 	}
 }
 
-func getObjectGetter(remote Remote) nodeservice.ObjectGetter {
+func getObjectGetter(remote config.Remote) nodeservice.ObjectGetter {
 	if remote.Index {
 		return nodeservice.IndexClient{
 			BaseURL: remote.URL,
@@ -127,9 +90,11 @@ func init() {
 	rootCmd.AddCommand(createSchemaCmd)
 	rootCmd.AddCommand(printSchemaCmd)
 	rootCmd.AddCommand(uploadCmd)
+	rootCmd.AddCommand(keygenCmd)
+	rootCmd.AddCommand(_map.MapCmd)
 }
 
 func GetObjectGetter() nodeservice.ObjectGetter {
-	config := readConfig()
+	config := config.ReadConfig()
 	return getMultiplexObjectGetter(config)
 }

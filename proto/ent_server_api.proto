@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package ent.server.api;
+
+option go_package = "github.com/ent";
+
+message MapGetRequest{}
+
+message MapGetResponse{}
+
+message MapSetRequest {
+    message Entry {
+        string label = 1;
+        Digest target = 2;
+    }
+    Entry entry = 1;
+
+    bytes public_key = 2;
+    bytes entry_signature = 3;
+}
+
+message MapSetResponse {
+}
+
+message Digest {
+    uint64 code = 1;
+    bytes digest = 2;
+}
+
+message GetEntryRequest {
+    Digest digest = 1;
+}
+
+message GetEntryResponse {
+    bytes entry = 1;
+}
+
+service Ent {
+    rpc MapGet(MapGetRequest) returns (MapGetResponse) {}
+    rpc MapSet(MapSetRequest) returns (MapSetResponse) {}
+
+    rpc GetEntry(GetEntryRequest) returns (GetEntryResponse) {}
+}

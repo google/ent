@@ -1,5 +1,5 @@
 //
-// Copyright 2022 The Ent Authors.
+// Copyright 2023 The Ent Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,19 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package _map
 
-type Config struct {
-	Remotes []Remote
-}
+import "github.com/spf13/cobra"
 
-// TODO: auth
-
-type Remote struct {
-	Name      string
-	URL       string
-	Index     bool
-	APIKey    string `toml:"api_key"`
-	Write     bool
-	ReadGroup uint
+var getCmd = &cobra.Command{
+	Use: "get",
+	Run: func(cmd *cobra.Command, args []string) {
+	},
 }

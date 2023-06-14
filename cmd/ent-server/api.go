@@ -154,3 +154,9 @@ func apiPutHandler(c *gin.Context) {
 	log.Debugf(ctx, "res: %#v", res)
 	c.JSON(http.StatusOK, res)
 }
+
+func apiMapGetHandler(c *gin.Context) {}
+
+func apiMapSetHandler(c *gin.Context) {
+
+}

@@ -20,6 +20,7 @@ import (
 	"log"
 
 	"github.com/google/ent/api"
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/schema"
@@ -30,7 +31,7 @@ var createSchemaCmd = &cobra.Command{
 	Use:  "create-schema [filename]",
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config := readConfig()
+		config := config.ReadConfig()
 		remote := config.Remotes[0]
 		if remoteFlag != "" {
 			var err error

@@ -21,6 +21,7 @@ import (
 	"log"
 
 	"github.com/fatih/color"
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/spf13/cobra"
@@ -50,7 +51,7 @@ var putFSCmd = &cobra.Command{
 }
 
 func putFS(bytes []byte, link cid.Cid, name string) error {
-	config := readConfig()
+	config := config.ReadConfig()
 	remote := config.Remotes[0]
 	if remoteFlag != "" {
 		var err error

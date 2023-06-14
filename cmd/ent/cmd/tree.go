@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
@@ -81,7 +82,7 @@ var treeCmd = &cobra.Command{
 			return
 		}
 
-		config := readConfig()
+		config := config.ReadConfig()
 		remote := config.Remotes[0]
 		if remoteFlag != "" {
 			var err error

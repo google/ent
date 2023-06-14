@@ -20,6 +20,9 @@ import "github.com/google/ent/utils"
 const (
 	APIV1BLOBSGET = "/api/v1/blobs/get"
 	APIV1BLOBSPUT = "/api/v1/blobs/put"
+
+	APIV1MAPGET = "/api/v1/map/get"
+	APIV1MAPSET = "/api/v1/map/set"
 )
 
 type GetRequest struct {

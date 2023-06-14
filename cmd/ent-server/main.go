@@ -208,6 +208,8 @@ func main() {
 
 	router.POST(api.APIV1BLOBSGET, apiGetHandler)
 	router.POST(api.APIV1BLOBSPUT, apiPutHandler)
+	router.POST(api.APIV1MAPGET, apiMapGetHandler)
+	router.POST(api.APIV1MAPSET, apiMapSetHandler)
 
 	router.GET("/raw/:digest", rawGetHandler)
 	router.PUT("/raw", rawPutHandler)

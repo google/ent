@@ -1,0 +1,27 @@
+listenAddress = ":27333"
+domainName = "localhost:27333"
+
+bigqueryEnabled = false
+bigqueryDataset = "access_logs"
+
+redisEnabled = false
+redisEndpoint = "10.51.202.235:6379"
+
+cloudStorageEnabled = false
+
+ginMode = "debug"
+logLevel = "debug"
+
+[[users]]
+ID = 1
+Name = "user"
+APIKey = "oAf1MTownkbSkMuCQVUIrNbS4GxKlBsDAQVKEihfajMoPiWreyhmtmVRVPVGOmJUJJAsfrYVtfVqBpGbX3BaZw=="
+CanRead = true
+CanWrite = true
+
+[[users]]
+ID = 2
+Name = "public"
+APIKey = ""
+CanRead = true
+CanWrite = false

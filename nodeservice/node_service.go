@@ -19,7 +19,6 @@ import (
 	"context"
 
 	"github.com/google/ent/api"
-	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 )
 
@@ -42,5 +41,4 @@ type NodeService interface {
 	NodeGetter
 	ObjectStore
 	PutNodes(ctx context.Context, req api.PutRequest) (api.PutResponse, error)
-	MapSet(ctx context.Context, m *pb.MapSetRequest) error
 }

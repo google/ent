@@ -19,7 +19,7 @@ run-web: build-web
     ./bin/ent-web -config=ent-web.toml
 
 build-proto:
-    protoc --go_out=. --go_opt=paths=source_relative proto/*.proto
+    protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/*.proto
 
 install-cli:
     go build -o ./bin/ent ./cmd/ent

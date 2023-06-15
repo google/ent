@@ -17,7 +17,6 @@ package _map
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
@@ -36,21 +35,12 @@ func init() {
 	MapCmd.AddCommand(getCmd)
 }
 
-func ValidateRequest(m *pb.MapSetRequest) error {
-	pk, err := x509.ParsePKIXPublicKey(m.PublicKey)
+func ValidateEntry(m *pb.MapEntry, ecpk *ecdsa.PublicKey, signature []byte) error {
+	entryBytes, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
-	ecpk, ok := pk.(*ecdsa.PublicKey)
-	if !ok {
-		return fmt.Errorf("invalid public key")
-	}
-
-	entryBytes, err := proto.Marshal(m.Entry)
-	if err != nil {
-		return err
-	}
-	if !ecdsa.VerifyASN1(ecpk, entryBytes, m.EntrySignature) {
+	if !ecdsa.VerifyASN1(ecpk, entryBytes, signature) {
 		return fmt.Errorf("invalid signature")
 	}
 

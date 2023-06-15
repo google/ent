@@ -58,12 +58,12 @@ func ParseDigest(s string) (Digest, error) {
 }
 
 func DigestToHumanString(d Digest) string {
-	// TODO: Check digest type.
 	m, err := multihash.Decode(d)
 	if err != nil {
 		panic(err)
 	}
-	return fmt.Sprintf("sha256:%s", hex.EncodeToString(m.Digest))
+	codeString := multihash.Codes[m.Code]
+	return fmt.Sprintf(codeString + ":" + hex.EncodeToString(m.Digest))
 }
 
 func DigestToProto(d Digest) *pb.Digest {

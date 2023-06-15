@@ -75,7 +75,7 @@ var setCmd = &cobra.Command{
 		}
 		targetProto := utils.DigestToProto(targetDigest)
 
-		entry := pb.MapSetRequest_Entry{
+		entry := pb.MapEntry{
 			Label:  label,
 			Target: targetProto,
 		}
@@ -96,16 +96,15 @@ var setCmd = &cobra.Command{
 		}
 		log.Printf("request: %+v", &req)
 
-		err = ValidateRequest(&req)
+		err = ValidateEntry(req.Entry, ecpk, req.EntrySignature)
 		if err != nil {
 			log.Fatalf("failed to validate map: %v", err)
 		}
 
-		config := config.ReadConfig()
-		r := config.Remotes[0]
+		r := c.Remotes[0]
 		nodeService := remote.GetObjectStore(r)
 		ctx := context.Background()
-		err = nodeService.MapSet(ctx, &req)
+		_, err = nodeService.GRPC.MapSet(ctx, &req)
 		log.Printf("err: %v", err)
 	},
 }

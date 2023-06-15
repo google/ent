@@ -17,17 +17,18 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func apiGetHandler(c *gin.Context) {
@@ -159,26 +160,46 @@ func apiPutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func apiMapGetHandler(c *gin.Context) {
+type grpcServer struct {
+	pb.UnimplementedEntServer
+}
+
+var _ pb.EntServer = grpcServer{}
+
+// GetEntry implements ent.EntServer
+func (grpcServer) GetEntry(context.Context, *pb.GetEntryRequest) (*pb.GetEntryResponse, error) {
+	panic("unimplemented")
+}
+
+// MapGet implements ent.EntServer
+func (grpcServer) MapGet(ctx context.Context, req *pb.MapGetRequest) (*pb.MapGetResponse, error) {
+	log.Debugf(ctx, "req: %s", &req)
+
+	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Label)
+	if err != nil {
+		log.Errorf(ctx, "could not get map entry: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not get map entry: %s", err)
+	}
+	if entry == nil {
+		log.Debugf(ctx, "map entry not found")
+		return &pb.MapGetResponse{}, nil
+	}
+	log.Infof(ctx, "map entry found: %s", entry)
+	return &pb.MapGetResponse{
+		Entry: &pb.MapEntry{
+			Label: entry.Label,
+			Target: &pb.Digest{
+				Code:   uint64(entry.Target.Code),
+				Digest: entry.Target.Digest,
+			},
+		},
+	}, nil
 
 }
 
-func apiMapSetHandler(c *gin.Context) {
-	b, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Errorf(c, "could not read body: %s", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	log.Infof(c, "body: %q", b)
-	req := pb.MapSetRequest{}
-	err = proto.Unmarshal(b, &req)
-	if err != nil {
-		log.Errorf(c, "could not parse request: %s", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	log.Debugf(c, "req: %s", &req)
+// MapSet implements ent.EntServer
+func (grpcServer) MapSet(ctx context.Context, req *pb.MapSetRequest) (*pb.MapSetResponse, error) {
+	log.Debugf(ctx, "req: %s", &req)
 
 	e := MapEntry{
 		PublicKey: req.PublicKey,
@@ -187,15 +208,19 @@ func apiMapSetHandler(c *gin.Context) {
 			Code:   int64(req.Entry.Target.Code),
 			Digest: req.Entry.Target.Digest,
 		},
-		EntrySignature:  req.EntrySignature,
-		CreationTime:    time.Now(),
-		ClientIPAddress: c.ClientIP(),
-		RequestBytes:    b,
+		EntrySignature: req.EntrySignature,
+		CreationTime:   time.Now(),
 	}
-	err = store.SetMapEntry(c, &e)
+	err := store.SetMapEntry(ctx, &e)
 	if err != nil {
-		log.Errorf(c, "could not set map entry: %s", err)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
+		log.Errorf(ctx, "could not set map entry: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not set map entry: %s", err)
 	}
+
+	return &pb.MapSetResponse{}, nil
+}
+
+// mustEmbedUnimplementedEntServer implements ent.EntServer
+func (grpcServer) mustEmbedUnimplementedEntServer() {
+	panic("unimplemented")
 }

@@ -4,16 +4,22 @@ package ent.server.api;
 
 option go_package = "github.com/ent";
 
-message MapGetRequest{}
+message MapGetRequest{
+    bytes public_key = 1;
+    string label = 2;
+}
 
-message MapGetResponse{}
+message MapGetResponse{
+    MapEntry entry = 1;
+}
+
+message MapEntry {
+    string label = 1;
+    Digest target = 2;
+}
 
 message MapSetRequest {
-    message Entry {
-        string label = 1;
-        Digest target = 2;
-    }
-    Entry entry = 1;
+    MapEntry entry = 1;
 
     bytes public_key = 2;
     bytes entry_signature = 3;

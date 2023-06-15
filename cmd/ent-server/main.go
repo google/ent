@@ -36,11 +36,13 @@ import (
 	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/objectstore"
+	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -219,11 +221,13 @@ func main() {
 
 	router.POST(api.APIV1BLOBSGET, apiGetHandler)
 	router.POST(api.APIV1BLOBSPUT, apiPutHandler)
-	router.POST(api.APIV1MAPGET, apiMapGetHandler)
-	router.POST(api.APIV1MAPSET, apiMapSetHandler)
 
 	router.GET("/raw/:digest", rawGetHandler)
 	router.PUT("/raw", rawPutHandler)
+
+	grpServer := grpc.NewServer()
+	pb.RegisterEntServer(grpServer, grpcServer{})
+	router.Any("/ent.server.api.Ent/*any", gin.WrapH(grpServer))
 
 	s := &http.Server{
 		Addr:           config.ListenAddress,
@@ -233,7 +237,9 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Infof(ctx, "server running")
-	log.Criticalf(ctx, "%v", s.ListenAndServe())
+	err := s.ListenAndServe()
+	fmt.Printf("server exited: %v", err)
+	log.Criticalf(ctx, "%v", err)
 }
 
 func indexHandler(c *gin.Context) {

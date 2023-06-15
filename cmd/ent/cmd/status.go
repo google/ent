@@ -26,14 +26,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	defaultRekorAddr = "https://rekor.sigstore.dev"
-
-	GitHubActionsIssuer = "https://token.actions.githubusercontent.com"
-	GitHubAccountIssuer = "https://github.com/login/oauth"
-	GoogleAccountIssuer = "https://accounts.google.com"
-)
-
 var statusCmd = &cobra.Command{
 	Use:  "status [digest]",
 	Args: cobra.ExactArgs(1),

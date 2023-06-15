@@ -22,6 +22,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/spf13/cobra"
@@ -52,20 +53,20 @@ var putFSCmd = &cobra.Command{
 
 func putFS(bytes []byte, link cid.Cid, name string) error {
 	config := config.ReadConfig()
-	remote := config.Remotes[0]
+	r := config.Remotes[0]
 	if remoteFlag != "" {
 		var err error
-		remote, err = getRemote(config, remoteFlag)
+		r, err = remote.GetRemote(config, remoteFlag)
 		if err != nil {
 			return fmt.Errorf("could not use remote: %v", err)
 		}
 	}
-	nodeService := getObjectStore(remote)
+	nodeService := remote.GetObjectStore(r)
 
 	digest := utils.Digest(link.Hash())
 	if exists(nodeService, digest) {
 		marker := color.GreenString("✓")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, r.Name, name)
 		return nil
 	} else {
 		_, err := nodeService.Put(context.Background(), bytes)
@@ -74,7 +75,7 @@ func putFS(bytes []byte, link cid.Cid, name string) error {
 			return fmt.Errorf("could not put object: %v", err)
 		}
 		marker := color.BlueString("↑")
-		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, remote.Name, name)
+		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, r.Name, name)
 		return nil
 	}
 }

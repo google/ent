@@ -16,6 +16,7 @@
 package _map
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
@@ -97,6 +99,13 @@ var setCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to validate map: %v", err)
 		}
+
+		config := config.ReadConfig()
+		r := config.Remotes[0]
+		nodeService := remote.GetObjectStore(r)
+		ctx := context.Background()
+		err = nodeService.MapSet(ctx, &req)
+		log.Printf("err: %v", err)
 	},
 }
 

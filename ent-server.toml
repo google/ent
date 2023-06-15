@@ -9,6 +9,8 @@ redisEndpoint = "10.51.202.235:6379"
 
 cloudStorageEnabled = false
 
+projectID = "oak-ci"
+
 ginMode = "debug"
 logLevel = "debug"
 

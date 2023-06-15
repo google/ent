@@ -23,6 +23,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
@@ -83,16 +84,16 @@ var treeCmd = &cobra.Command{
 		}
 
 		config := config.ReadConfig()
-		remote := config.Remotes[0]
+		r := config.Remotes[0]
 		if remoteFlag != "" {
 			var err error
-			remote, err = getRemote(config, remoteFlag)
+			r, err = remote.GetRemote(config, remoteFlag)
 			if err != nil {
 				log.Fatalf("could not use remote: %v", err)
 				return
 			}
 		}
-		o := getObjectStore(remote)
+		o := remote.GetObjectStore(r)
 		o1 := nodeservice.Cached{
 			Cache: make(map[utils.DigestArray][]byte),
 			Inner: o,

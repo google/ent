@@ -16,7 +16,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 
 	_map "github.com/google/ent/cmd/ent/cmd/map"
@@ -24,26 +23,6 @@ import (
 	"github.com/google/ent/nodeservice"
 	"github.com/spf13/cobra"
 )
-
-func getRemote(c config.Config, remoteName string) (config.Remote, error) {
-	for _, remote := range c.Remotes {
-		if remote.Name == remoteName {
-			return remote, nil
-		}
-	}
-	return config.Remote{}, fmt.Errorf("remote %q not found", remoteName)
-}
-
-func getObjectStore(remote config.Remote) nodeservice.NodeService {
-	if remote.Write {
-		return nodeservice.Remote{
-			APIURL: remote.URL,
-			APIKey: remote.APIKey,
-		}
-	} else {
-		return nil
-	}
-}
 
 func getMultiplexObjectGetter(c config.Config) nodeservice.ObjectGetter {
 	inner := make([]nodeservice.Inner, 0)

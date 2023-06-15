@@ -20,10 +20,12 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/storage"
 	"github.com/BurntSushi/toml"
 	"github.com/gin-contrib/cors"
@@ -43,6 +45,7 @@ import (
 
 var (
 	blobStore nodeservice.ObjectStore
+	store     Store
 
 	enableMemcache = false
 	enableBigquery = false
@@ -90,6 +93,21 @@ func readConfig() Config {
 		panic(err)
 	}
 	return config
+}
+
+func initStore(ctx context.Context, projectID string) *firestore.Client {
+	firestoreClient, err := firestore.NewClient(context.Background(), projectID)
+	if err != nil {
+		log.Criticalf(ctx, "Failed to create client: %v", err)
+		os.Exit(1)
+	}
+	res, err := firestoreClient.Doc("test/test").Set(ctx, map[string]interface{}{})
+	if err != nil {
+		log.Criticalf(ctx, "Failed to write to firestore: %v", err)
+		os.Exit(1)
+	}
+	log.Infof(ctx, "Wrote to firestore: %v", res)
+	return firestoreClient
 }
 
 func main() {
@@ -181,6 +199,11 @@ func main() {
 
 	blobStore = objectstore.Store{
 		Inner: ds,
+	}
+
+	fs := initStore(ctx, config.ProjectID)
+	store = Store{
+		c: fs,
 	}
 
 	gin.SetMode(config.GinMode)

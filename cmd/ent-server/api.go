@@ -18,11 +18,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang/protobuf/proto"
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
+	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 )
 
@@ -155,8 +159,43 @@ func apiPutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func apiMapGetHandler(c *gin.Context) {}
+func apiMapGetHandler(c *gin.Context) {
+
+}
 
 func apiMapSetHandler(c *gin.Context) {
+	b, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Errorf(c, "could not read body: %s", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	log.Infof(c, "body: %q", b)
+	req := pb.MapSetRequest{}
+	err = proto.Unmarshal(b, &req)
+	if err != nil {
+		log.Errorf(c, "could not parse request: %s", err)
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	log.Debugf(c, "req: %s", &req)
 
+	e := MapEntry{
+		PublicKey: req.PublicKey,
+		Label:     req.Entry.Label,
+		Target: Digest{
+			Code:   int64(req.Entry.Target.Code),
+			Digest: req.Entry.Target.Digest,
+		},
+		EntrySignature:  req.EntrySignature,
+		CreationTime:    time.Now(),
+		ClientIPAddress: c.ClientIP(),
+		RequestBytes:    b,
+	}
+	err = store.SetMapEntry(c, &e)
+	if err != nil {
+		log.Errorf(c, "could not set map entry: %s", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
 }

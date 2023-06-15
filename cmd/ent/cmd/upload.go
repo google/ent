@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -91,15 +92,15 @@ func upload(planFilename string) error {
 	log.Printf("parsed plan: %#v", plan)
 
 	config := config.ReadConfig()
-	remote := config.Remotes[0]
+	r := config.Remotes[0]
 	if remoteFlag != "" {
 		var err error
-		remote, err = getRemote(config, remoteFlag)
+		r, err = remote.GetRemote(config, remoteFlag)
 		if err != nil {
 			return fmt.Errorf("could not use remote: %v", err)
 		}
 	}
-	nodeService := getObjectStore(remote)
+	nodeService := remote.GetObjectStore(r)
 
 	dagNode := utils.DAGNode{
 		Links: []cid.Cid{},

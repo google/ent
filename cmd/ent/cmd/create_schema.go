@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/ent/api"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/schema"
@@ -32,16 +33,16 @@ var createSchemaCmd = &cobra.Command{
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		config := config.ReadConfig()
-		remote := config.Remotes[0]
+		r := config.Remotes[0]
 		if remoteFlag != "" {
 			var err error
-			remote, err = getRemote(config, remoteFlag)
+			r, err = remote.GetRemote(config, remoteFlag)
 			if err != nil {
 				log.Fatalf("could not use remote: %v", err)
 				return
 			}
 		}
-		nodeservice := getObjectStore(remote)
+		nodeservice := remote.GetObjectStore(r)
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{

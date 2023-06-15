@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/ent/api"
 	"github.com/google/ent/log"
+	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -167,6 +169,29 @@ func (s Remote) PutNodes(ctx context.Context, req api.PutRequest) (api.PutRespon
 	}
 
 	return res, nil
+}
+
+func (s Remote) MapSet(ctx context.Context, m *pb.MapSetRequest) error {
+	b, err := proto.Marshal(m)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1MAPSET, bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set(APIKeyHeader, s.APIKey)
+	httpRes, err := DoRequest(req)
+	if err != nil {
+		log.Errorf(ctx, "error sending request: %v", err)
+	}
+	if httpRes.StatusCode == http.StatusOK {
+		return nil
+	}
+	if httpRes.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	return fmt.Errorf("invalid status code: %d", httpRes.StatusCode)
 }
 
 func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {

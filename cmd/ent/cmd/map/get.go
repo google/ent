@@ -22,13 +22,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"net/url"
 
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/cmd/ent/remote"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 var getCmd = &cobra.Command{
@@ -57,28 +56,17 @@ var getCmd = &cobra.Command{
 		log.Printf("request: %+v", &req)
 
 		r := c.Remotes[0]
-
-		parsedURL, err := url.Parse(r.URL)
-		if err != nil {
-			log.Fatalf("failed to parse url: %v", err)
-		}
-
-		cc, err := grpc.Dial(parsedURL.Hostname()+":"+parsedURL.Port(), grpc.WithInsecure())
-		if err != nil {
-			log.Fatalf("failed to dial: %v", err)
-		}
-		client := pb.NewEntClient(cc)
-
+		nodeService := remote.GetObjectStore(r)
 		ctx := context.Background()
-		res, err := client.MapGet(ctx, &req)
+		res, err := nodeService.GRPC.MapGet(ctx, &req)
 		if err != nil {
 			log.Fatalf("failed to get: %v", err)
 		}
 		log.Printf("response: %+v", res)
 
 		digest := utils.DigestFromProto(res.Entry.Target)
-		o := utils.DigestToHumanString(digest)
-		fmt.Printf("%s\n", o)
+		out := utils.DigestToHumanString(digest)
+		fmt.Printf("%s\n", out)
 	},
 }
 

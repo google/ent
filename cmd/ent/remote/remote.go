@@ -9,6 +9,7 @@ import (
 	"github.com/google/ent/nodeservice"
 	pb "github.com/google/ent/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func GetRemote(c config.Config, remoteName string) (config.Remote, error) {
@@ -27,7 +28,13 @@ func GetObjectStore(remote config.Remote) *nodeservice.Remote {
 			log.Fatalf("failed to parse url: %v", err)
 		}
 
-		cc, err := grpc.Dial(parsedURL.Hostname()+":"+parsedURL.Port(), grpc.WithInsecure())
+		o := []grpc.DialOption{}
+		if parsedURL.Scheme == "http" {
+			o = append(o, grpc.WithInsecure())
+		} else {
+			o = append(o, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
+		}
+		cc, err := grpc.Dial(parsedURL.Hostname()+":"+parsedURL.Port(), o...)
 		if err != nil {
 			log.Fatalf("failed to dial: %v", err)
 		}

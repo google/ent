@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"encoding/base32"
 	"flag"
 	"fmt"
 	"net/http"
@@ -82,17 +81,6 @@ type UIPathSegment struct {
 	Selector utils.Selector
 	Name     string
 	URL      string
-}
-
-func hostSegments(host string) []string {
-	host = strings.TrimSuffix(host, domainName)
-	host = strings.TrimSuffix(host, ".")
-	hostSegments := strings.Split(host, ".")
-	if len(hostSegments) > 0 && hostSegments[0] == "" {
-		return hostSegments[1:]
-	} else {
-		return hostSegments
-	}
 }
 
 func readConfig() Config {
@@ -213,11 +201,6 @@ func main() {
 
 	router.GET("/raw/:digest", rawGetHandler)
 	router.PUT("/raw", rawPutHandler)
-
-	router.GET("/browse/:digest", webGetHandler)
-	router.GET("/browse/:digest/*path", webGetHandler)
-
-	router.StaticFile("/static/tailwind.min.css", "./templates/tailwind.min.css")
 
 	s := &http.Server{
 		Addr:           config.ListenAddress,
@@ -365,68 +348,6 @@ func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selecto
 		log.Debugf(ctx, "next: %v", next)
 		return traverse(ctx, utils.Digest(next.Hash()), segments[1:])
 	}
-}
-
-func renderHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	hostSegments := hostSegments(c.Request.Host)
-	if len(hostSegments) != 2 {
-		log.Warningf(ctx, "invalid host segments: %#v", hostSegments)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	if hostSegments[len(hostSegments)-1] != wwwSegment {
-		log.Warningf(ctx, "invalid host segments: %#v", hostSegments)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	digestBytes, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(hostSegments[0]))
-	if err != nil {
-		log.Warningf(ctx, "could not base32 decode host segment: %v: %v", hostSegments[0], err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	digest := fmt.Sprintf("sha256:%x", digestBytes)
-	log.Infof(ctx, "digest: %s", digest)
-
-	root, err := utils.ParseDigest(string(digest))
-	if err != nil {
-		log.Warningf(ctx, "could not parse digest: %s", err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	path, err := utils.ParsePath(c.Param("path"))
-	if err != nil {
-		log.Warningf(ctx, "invalid path: %v", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-	target, err := traverse(ctx, root, path)
-	if err != nil {
-		log.Warningf(ctx, "could not traverse: %s", err)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	log.Infof(ctx, "root: %v", root)
-	nodeRaw, err := blobStore.Get(ctx, target)
-	if err != nil {
-		log.Warningf(ctx, "could not get blob %s: %s", target, err)
-		c.Abort()
-		return
-	}
-
-	LogGet(ctx, &LogItemGet{
-		LogItem: BaseLogItem(c),
-		Source:  SourceWeb,
-		// TODO: UserID
-		Digest: []string{string(target)},
-	})
-
-	c.Header("ent-digest", string(target))
-	contentType := http.DetectContentType(nodeRaw)
-	c.Data(http.StatusOK, contentType, nodeRaw)
 }
 
 func BaseLogItem(c *gin.Context) LogItem {

@@ -42,6 +42,7 @@ var setCmd = &cobra.Command{
 	Args: cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		c := config.ReadConfig()
+
 		skb, err := base64.URLEncoding.DecodeString(c.SecretKey)
 		if err != nil {
 			log.Fatalf("failed to decode secret key: %v", err)

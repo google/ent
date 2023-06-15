@@ -22,3 +22,8 @@ var getCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 	},
 }
+
+func init() {
+	getCmd.PersistentFlags().StringVar(&publicKey, "public-key", "", "public key")
+	getCmd.PersistentFlags().StringVar(&label, "label", "", "label")
+}

@@ -16,36 +16,13 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/json"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"log"
 
 	"github.com/fatih/color"
-	"github.com/go-openapi/runtime"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/utils"
-	"github.com/in-toto/in-toto-golang/in_toto"
-	"github.com/sigstore/cosign/cmd/cosign/cli/fulcio"
-	"github.com/sigstore/cosign/pkg/cosign"
-	"github.com/sigstore/cosign/pkg/signature"
-	rekor "github.com/sigstore/rekor/pkg/client"
-	"github.com/sigstore/rekor/pkg/generated/client/entries"
-	"github.com/sigstore/rekor/pkg/generated/client/index"
-	"github.com/sigstore/rekor/pkg/generated/models"
-	"github.com/sigstore/rekor/pkg/types"
-	hashedrekord "github.com/sigstore/rekor/pkg/types/hashedrekord/v0.0.1"
-	intoto "github.com/sigstore/rekor/pkg/types/intoto/v0.0.1"
-	rekord "github.com/sigstore/rekor/pkg/types/rekord/v0.0.1"
-	"github.com/sigstore/sigstore/pkg/cryptoutils"
-	"github.com/sigstore/sigstore/pkg/signature/options"
 	"github.com/spf13/cobra"
 )
 
@@ -70,149 +47,6 @@ var statusCmd = &cobra.Command{
 	},
 }
 
-// rekorStatus checks if the digest is signed by one or more rekor entries, and prints out their
-// details. It only handles entries that root into Fulcio.
-//
-// To sign an entry locally:
-//
-// COSIGN_EXPERIMENTAL=1 cosign sign-blob ./README.md
-func rekorStatus(digest utils.Digest) {
-	rc, err := rekor.GetRekorClient(defaultRekorAddr, rekor.WithUserAgent("ent"))
-	if err != nil {
-		log.Fatalf("could not create rekor client: %v", err)
-		return
-	}
-	params := index.NewSearchIndexParams()
-	params.Query = &models.SearchIndex{Hash: utils.DigestToHumanString(digest)}
-	res, err := rc.Index.SearchIndex(params)
-	if err != nil {
-		log.Fatalf("could not search rekor index: %v", err)
-		return
-	}
-	log.Printf("found %d rekor entries", len(res.Payload))
-	for _, id := range res.Payload {
-		p := entries.NewGetLogEntryByUUIDParams()
-		p.EntryUUID = id
-		e, err := rc.Entries.GetLogEntryByUUID(p)
-		if err != nil {
-			log.Fatalf("could not get rekor entry: %v", err)
-			return
-		}
-		en := e.Payload[id]
-		_, err = certs(&en)
-		if err != nil {
-			log.Fatalf("could not get certs from rekor entry %q: %v", id, err)
-			return
-		}
-	}
-}
-
-func certs(e *models.LogEntryAnon) ([]*x509.Certificate, error) {
-	log.Printf("log entry %q", *e.LogID)
-	b, err := base64.StdEncoding.DecodeString(e.Body.(string))
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("log entry %s", string(b))
-	pe, err := models.UnmarshalProposedEntry(bytes.NewReader(b), runtime.JSONConsumer())
-	if err != nil {
-		return nil, err
-	}
-	eimpl, err := types.CreateVersionedEntry(pe)
-	if err != nil {
-		return nil, err
-	}
-	// log.Printf("entry: %+v", e)
-	// log.Printf("entry: %+v", eimpl)
-	var (
-		publicKey []byte
-		data      []byte
-		sig       []byte
-	)
-	switch ei := eimpl.(type) {
-	case *rekord.V001Entry:
-		publicKey = []byte(*ei.RekordObj.Signature.PublicKey.Content)
-		data = ei.RekordObj.Data.Content
-		sig = []byte(*ei.RekordObj.Signature.Content)
-	case *hashedrekord.V001Entry:
-		publicKey = ei.HashedRekordObj.Signature.PublicKey.Content
-		data, err = hex.DecodeString(*ei.HashedRekordObj.Data.Hash.Value)
-		if err != nil {
-			return nil, err
-		}
-		sig = ei.HashedRekordObj.Signature.Content
-	case *intoto.V001Entry:
-		var i in_toto.ProvenanceStatement
-		attestationBytes, err := base64.StdEncoding.DecodeString(string(e.Attestation.Data))
-		if err != nil {
-			return nil, err
-		}
-		err = json.NewDecoder(bytes.NewReader(attestationBytes)).Decode(&i)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("intoto attestation %+v", i)
-		publicKey = *ei.IntotoObj.PublicKey
-		// TODO
-	default:
-		return nil, errors.New("unexpected tlog entry type")
-	}
-	// log.Printf("data: (%d) %v", len(data), data)
-	// log.Printf("sig: (%d) %v", len(sig), sig)
-	// log.Printf("public key: (%d) %v", len(publicKey), string(publicKey))
-
-	certs, err := cryptoutils.UnmarshalCertificatesFromPEM(publicKey)
-	if err != nil {
-		block, _ := pem.Decode(publicKey)
-		pk, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse public key: %v", err)
-		}
-		log.Printf("public key: %+v", pk)
-		switch pk := pk.(type) {
-		case *ecdsa.PublicKey:
-			ok := ecdsa.VerifyASN1(pk, data, sig)
-			log.Printf("ecdsa verification: %v", ok)
-		default:
-			return nil, fmt.Errorf("unexpected public key type: %T", pk)
-		}
-		return nil, nil
-	} else {
-
-		if len(certs) == 0 {
-			return nil, errors.New("no certs found in pem tlog")
-		}
-
-		r, err := fulcio.GetRoots()
-		if err != nil {
-			return nil, err
-		}
-		co := &cosign.CheckOpts{
-			RootCerts: r,
-			// CertOidcIssuer: "https://token.actions.githubusercontent.com",
-			// CertOidcIssuer: "https://github.com/login/oauth",
-			// CertOidcIssuer: "https://accounts.google.com",
-		}
-		for _, c := range certs {
-			verifier, err := cosign.ValidateAndUnpackCert(c, co)
-			if err != nil {
-				log.Printf("could not validate cert: %v", err)
-				continue
-			}
-			err = verifier.VerifySignature(bytes.NewReader(sig), nil, options.WithDigest(data))
-			if err != nil {
-				log.Printf("could not verify signature: %v", err)
-				continue
-			}
-			log.Printf("verified signature")
-			// log.Printf("cert OIDC issuer: %q", signature.CertIssuerExtension(c))
-			log.Printf("cert OIDC subject: %q", signature.CertSubject(c))
-		}
-	}
-
-	return certs, err
-}
-
 func status(digest utils.Digest) {
 	c := config.ReadConfig()
 	s := []<-chan string{}
@@ -232,5 +66,4 @@ func status(digest utils.Digest) {
 	for _, c := range s {
 		fmt.Printf(<-c)
 	}
-	rekorStatus(digest)
 }

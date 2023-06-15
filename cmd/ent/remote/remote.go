@@ -34,7 +34,15 @@ func GetObjectStore(remote config.Remote) *nodeservice.Remote {
 		} else {
 			o = append(o, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
 		}
-		cc, err := grpc.Dial(parsedURL.Hostname()+":"+parsedURL.Port(), o...)
+		port := parsedURL.Port()
+		if port == "" {
+			if parsedURL.Scheme == "http" {
+				port = "80"
+			} else {
+				port = "443"
+			}
+		}
+		cc, err := grpc.Dial(parsedURL.Hostname()+":"+port, o...)
 		if err != nil {
 			log.Fatalf("failed to dial: %v", err)
 		}

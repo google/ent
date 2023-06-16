@@ -39,13 +39,14 @@ func ParseDigest(s string) (Digest, error) {
 		if err == nil {
 			return Digest(digest), nil
 		} else {
-			if strings.HasPrefix(s, "sha256:") {
-				s = strings.TrimPrefix(s, "sha256:")
-				ss, err := hex.DecodeString(s)
+			parts := strings.Split(s, ":")
+			if len(parts) == 2 {
+				code := multihash.Names[strings.ToLower(parts[0])]
+				ss, err := hex.DecodeString(parts[1])
 				if err != nil {
 					return nil, err
 				}
-				digest, err = multihash.Encode(ss, multihash.SHA2_256)
+				digest, err = multihash.Encode(ss, code)
 				if err != nil {
 					return nil, err
 				}
@@ -106,4 +107,17 @@ func DigestToArray(digest multihash.Multihash) DigestArray {
 	}
 	copy(a[:], digest[:])
 	return a
+}
+
+func FormatDigest(digest Digest, format string) string {
+	switch format {
+	case "human":
+		return DigestToHumanString(digest)
+	case "hex":
+		return digest.HexString()
+	case "b58":
+		return digest.B58String()
+	default:
+		return "-"
+	}
 }

@@ -30,9 +30,14 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
 	"github.com/spf13/cobra"
+	"github.com/tonistiigi/units"
 )
 
-var remoteFlag string
+var (
+	remoteFlag       string
+	digestFormatFlag string
+	porcelainFlag    bool
+)
 
 var putCmd = &cobra.Command{
 	Use:  "put [filename]",
@@ -90,20 +95,24 @@ func put(bytes []byte, link cid.Cid, name string) error {
 	switch link.Type() {
 	case utils.TypeRaw:
 		digest := utils.Digest(link.Hash())
+		digestString := utils.FormatDigest(digest, digestFormatFlag)
+		marker := color.GreenString("-")
 		if exists(nodeService, digest) {
-			marker := color.GreenString("✓")
-			fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, r.Name, name)
-			return nil
+			marker = color.GreenString("✓")
 		} else {
 			_, err := nodeService.Put(context.Background(), bytes)
 			if err != nil {
 				log.Printf("could not put object: %v", err)
 				return fmt.Errorf("could not put object: %v", err)
 			}
-			marker := color.BlueString("↑")
-			fmt.Printf("%s %s [%s] %s\n", color.YellowString(digest.String()), marker, r.Name, name)
-			return nil
+			marker = color.BlueString("↑")
 		}
+		if porcelainFlag {
+			fmt.Printf("%s\n", digestString)
+		} else {
+			fmt.Printf("%s [%s %s] %s %.0f\n", color.YellowString(digestString), marker, r.Name, name, units.Bytes(len(bytes)))
+		}
+		return nil
 	case utils.TypeDAG:
 		return nil
 	default:
@@ -123,4 +132,6 @@ func exists(nodeService nodeservice.ObjectGetter, digest utils.Digest) bool {
 
 func init() {
 	putCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
+	putCmd.PersistentFlags().StringVar(&digestFormatFlag, "digest-format", "b58", "format [human, hex, b58]")
+	putCmd.PersistentFlags().BoolVar(&porcelainFlag, "porcelain", false, "porcelain output (parseable by machines)")
 }

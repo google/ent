@@ -31,7 +31,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
-	"github.com/google/ent/api"
 	"github.com/google/ent/datastore"
 	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
@@ -43,6 +42,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -219,9 +219,6 @@ func main() {
 	router.RedirectFixedPath = false
 	router.LoadHTMLGlob("templates/*")
 
-	router.POST(api.APIV1BLOBSGET, apiGetHandler)
-	router.POST(api.APIV1BLOBSPUT, apiPutHandler)
-
 	router.GET("/raw/:digest", rawGetHandler)
 	router.PUT("/raw", rawPutHandler)
 
@@ -355,6 +352,17 @@ func getAPIKey(c *gin.Context) string {
 	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
 	const header = "x-api-key"
 	return c.Request.Header.Get(header)
+}
+
+func getAPIKeyGRPC(c context.Context) string {
+	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
+	const header = "x-api-key"
+	md, _ := metadata.FromIncomingContext(c)
+	vv := md.Get(header)
+	if len(vv) == 0 {
+		return ""
+	}
+	return vv[0]
 }
 
 func traverse(ctx context.Context, digest utils.Digest, segments []utils.Selector) (utils.Digest, error) {

@@ -4,30 +4,6 @@ package ent.server.api;
 
 option go_package = "github.com/ent";
 
-message MapGetRequest{
-    bytes public_key = 1;
-    string label = 2;
-}
-
-message MapGetResponse{
-    MapEntry entry = 1;
-}
-
-message MapEntry {
-    string label = 1;
-    Digest target = 2;
-}
-
-message MapSetRequest {
-    MapEntry entry = 1;
-
-    bytes public_key = 2;
-    bytes entry_signature = 3;
-}
-
-message MapSetResponse {
-}
-
 message Digest {
     uint64 code = 1;
     bytes digest = 2;
@@ -35,15 +11,61 @@ message Digest {
 
 message GetEntryRequest {
     Digest digest = 1;
+    bool include_bytes = 2;
+}
+
+message Chunk {
+    uint64 offset = 1;
+    bytes data = 2;
 }
 
 message GetEntryResponse {
-    bytes entry = 1;
+    oneof entry {
+        EntryMetadata metadata = 1;
+        Chunk chunk = 2;
+    }
+}
+
+message PutEntryRequest {
+    Chunk chunk = 1;
+}
+
+message PutEntryResponse {
+    EntryMetadata metadata = 1;
+}
+
+message EntryMetadata {
+    repeated Digest digests = 1;
+}
+
+message GetTagRequest{
+    bytes public_key = 1;
+    string tag = 2;
+}
+
+message GetTagResponse{
+    TagEntry entry = 1;
+}
+
+message TagEntry {
+    string tag = 1;
+    Digest target = 2;
+}
+
+message SetTagRequest {
+    TagEntry entry = 1;
+
+    bytes public_key = 2;
+    bytes entry_signature = 3;
+}
+
+message SetTagResponse {
 }
 
 service Ent {
-    rpc MapGet(MapGetRequest) returns (MapGetResponse) {}
-    rpc MapSet(MapSetRequest) returns (MapSetResponse) {}
+    rpc GetTag(GetTagRequest) returns (GetTagResponse) {}
+    rpc SetTag(SetTagRequest) returns (SetTagResponse) {}
 
-    rpc GetEntry(GetEntryRequest) returns (GetEntryResponse) {}
+    rpc GetEntry(GetEntryRequest) returns (stream GetEntryResponse) {}
+    rpc PutEntry(stream PutEntryRequest) returns (PutEntryResponse) {}
 }

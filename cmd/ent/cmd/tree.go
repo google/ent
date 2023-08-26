@@ -94,10 +94,10 @@ var treeCmd = &cobra.Command{
 			}
 		}
 		o := remote.GetObjectStore(r)
-		o1 := nodeservice.Cached{
-			Cache: make(map[utils.DigestArray][]byte),
-			Inner: o,
-		}
+		// o1 := nodeservice.Cached{
+		// 	Cache: make(map[utils.DigestArray][]byte),
+		// 	Inner: o,
+		// }
 
 		if schemaFlag != "" {
 			schemaDigest, err := utils.ParseDigest(schemaFlag)
@@ -105,7 +105,7 @@ var treeCmd = &cobra.Command{
 				log.Fatalf("could not parse schema digest: %v", err)
 				return
 			}
-			err = schema.GetStruct(o1, schemaDigest, &s)
+			err = schema.GetStruct(o, schemaDigest, &s)
 			if err != nil {
 				log.Fatalf("could not load schema: %v", err)
 				return

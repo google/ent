@@ -18,16 +18,15 @@ package nodeservice
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
 
-	"github.com/google/ent/api"
 	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
-	"github.com/ipfs/go-cid"
-	"github.com/multiformats/go-multihash"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 )
 
 type Remote struct {
@@ -38,164 +37,109 @@ type Remote struct {
 
 const (
 	APIKeyHeader = "x-api-key"
+	chunkSize    = 1024 * 1024
 )
 
 var (
 	ErrNotFound = fmt.Errorf("not found")
 )
 
-func DoRequest(req *http.Request) (*http.Response, error) {
-	httpClient := http.Client{
-		// Transport: &http2.Transport{
-		// 	AllowHTTP: true,
-		// 	DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-		// 		return net.Dial(network, addr)
-		// 	},
-		// },
-	}
-	return httpClient.Do(req)
-}
-
 func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
-	req := api.GetRequest{
-		Items: []api.GetRequestItem{{
-			NodeID: utils.NodeID{
-				Root: cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)),
-			},
-		}},
-	}
-	reqBytes := bytes.Buffer{}
-	err := json.NewEncoder(&reqBytes).Encode(req)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding JSON request: %w", err)
-	}
+	md := metadata.New(nil)
+	md.Set(APIKeyHeader, s.APIKey)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error creating HTTP request: %w", err)
+	req := pb.GetEntryRequest{
+		Digest:       utils.DigestToProto(digest),
+		IncludeBytes: true,
 	}
-	httpReq.Header.Set(APIKeyHeader, s.APIKey)
-	httpRes, err := DoRequest(httpReq)
+	c, err := s.GRPC.GetEntry(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
-	if httpRes.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error: %v", httpRes.Status)
-	}
 
-	res := api.GetResponse{}
-	err = json.NewDecoder(httpRes.Body).Decode(&res)
+	res, err := c.Recv()
 	if err != nil {
-		return nil, fmt.Errorf("error decoding JSON response: %w", err)
+		return nil, err
 	}
 
-	item, ok := res.Items[digest.String()]
-	if !ok {
-		return nil, ErrNotFound
-	}
-
-	return item, nil
+	return res.GetChunk().Data, nil
 }
 
 func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
-	req := api.PutRequest{
-		Blobs: [][]byte{b},
-	}
+	md := metadata.New(nil)
+	md.Set(APIKeyHeader, s.APIKey)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	res, err := s.PutNodes(ctx, req)
+	c, err := s.GRPC.PutEntry(ctx)
 	if err != nil {
-		return utils.Digest{}, fmt.Errorf("error getting response: %w", err)
-	}
-	if len(res.Digest) != 1 {
-		return utils.Digest{}, fmt.Errorf("expected 1 digest, got %d", len(res.Digest))
+		return nil, err
 	}
 
-	return res.Digest[0], nil
-}
+	r := bytes.NewReader(b)
+	chunk := make([]byte, chunkSize)
+	for {
+		n, err := r.Read(chunk)
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		req := pb.PutEntryRequest{
+			Chunk: &pb.Chunk{
+				Data: chunk[:n],
+			},
+		}
+		err = c.Send(&req)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-func (s Remote) GetNodes(ctx context.Context, req api.GetRequest) (api.GetResponse, error) {
-	reqBytes := bytes.Buffer{}
-	err := json.NewEncoder(&reqBytes).Encode(req)
+	res, err := c.CloseAndRecv()
 	if err != nil {
-		return api.GetResponse{}, fmt.Errorf("error encoding JSON request: %w", err)
+		return nil, err
+	}
+	if len(res.GetMetadata().GetDigests()) != 1 {
+		return utils.Digest{}, fmt.Errorf("expected 1 digest, got %d", len(res.GetMetadata().GetDigests()))
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
-	if err != nil {
-		return api.GetResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
-	}
-	httpReq.Header.Set(APIKeyHeader, s.APIKey)
-	httpRes, err := DoRequest(httpReq)
-	if err != nil {
-		return api.GetResponse{}, fmt.Errorf("error sending request: %w", err)
-	}
-	if httpRes.StatusCode != http.StatusOK {
-		return api.GetResponse{}, fmt.Errorf("error getting get response: %s", httpRes.Status)
-	}
+	digest := utils.DigestFromProto(res.Metadata.Digests[0])
 
-	res := api.GetResponse{}
-	err = json.NewDecoder(httpRes.Body).Decode(&res)
-	if err != nil {
-		return api.GetResponse{}, fmt.Errorf("error decoding JSON response: %w", err)
-	}
-
-	return res, nil
-}
-
-func (s Remote) PutNodes(ctx context.Context, req api.PutRequest) (api.PutResponse, error) {
-	reqBytes := bytes.Buffer{}
-	err := json.NewEncoder(&reqBytes).Encode(req)
-	if err != nil {
-		return api.PutResponse{}, fmt.Errorf("error encoding JSON request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSPUT, &reqBytes)
-	if err != nil {
-		return api.PutResponse{}, fmt.Errorf("error creating HTTP request: %w", err)
-	}
-	httpReq.Header.Set(APIKeyHeader, s.APIKey)
-	httpRes, err := DoRequest(httpReq)
-	if err != nil {
-		return api.PutResponse{}, fmt.Errorf("error sending request: %w", err)
-	}
-	if httpRes.StatusCode != http.StatusOK {
-		return api.PutResponse{}, fmt.Errorf("error getting put response: %s", httpRes.Status)
-	}
-
-	res := api.PutResponse{}
-	err = json.NewDecoder(httpRes.Body).Decode(&res)
-	if err != nil {
-		return api.PutResponse{}, fmt.Errorf("error decoding JSON response: %w", err)
-	}
-
-	return res, nil
+	return digest, nil
 }
 
 func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
-	req := api.GetRequest{
-		Items: []api.GetRequestItem{{
-			NodeID: utils.NodeID{
-				Root: cid.NewCidV1(utils.TypeRaw, multihash.Multihash(digest)),
-			},
-		}},
-	}
-	reqBytes := bytes.Buffer{}
-	json.NewEncoder(&reqBytes).Encode(req)
+	log.Debugf(ctx, "checking existence of %q", digest)
+	md := metadata.New(nil)
+	md.Set(APIKeyHeader, s.APIKey)
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	httpReq, err := http.NewRequest(http.MethodPost, s.APIURL+api.APIV1BLOBSGET, &reqBytes)
-	if err != nil {
-		return false, fmt.Errorf("error creating HTTP request: %w", err)
+	req := pb.GetEntryRequest{
+		Digest:       utils.DigestToProto(digest),
+		IncludeBytes: false,
 	}
-	httpReq.Header.Set(APIKeyHeader, s.APIKey)
-	httpRes, err := DoRequest(httpReq)
-	if err != nil {
-		log.Errorf(ctx, "error sending request: %v", err)
-	}
-	if httpRes.StatusCode == http.StatusOK {
-		return true, nil
-	}
-	if httpRes.StatusCode == http.StatusNotFound {
+	c, err := s.GRPC.GetEntry(ctx, &req)
+	// It looks like the actual errors are returned below, not here.
+	if grpc.Code(err) == codes.NotFound {
+		log.Debugf(ctx, "entry not found: %s", err)
 		return false, nil
+	} else if err != nil {
+		log.Debugf(ctx, "error checking entry existence: %s", err)
+		return false, err
 	}
-	return false, fmt.Errorf("invalid status code: %d", httpRes.StatusCode)
+
+	res, err := c.Recv()
+	if grpc.Code(err) == codes.NotFound {
+		log.Debugf(ctx, "entry not found: %s", err)
+		return false, nil
+	} else if err != nil {
+		log.Debugf(ctx, "error receiving entry: %s", err)
+		return false, err
+	}
+
+	ok := len(res.GetMetadata().GetDigests()) > 0
+	log.Debugf(ctx, "entry found: %v", ok)
+
+	return ok, nil
 }

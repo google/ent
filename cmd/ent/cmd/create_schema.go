@@ -16,10 +16,8 @@
 package cmd
 
 import (
-	"context"
 	"log"
 
-	"github.com/google/ent/api"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/datastore"
@@ -42,7 +40,7 @@ var createSchemaCmd = &cobra.Command{
 				return
 			}
 		}
-		nodeservice := remote.GetObjectStore(r)
+		_ = remote.GetObjectStore(r)
 		s := schema.Schema{
 			Kinds: []schema.Kind{
 				{
@@ -169,20 +167,20 @@ var createSchemaCmd = &cobra.Command{
 				Inner: m,
 			},
 		}
-		h, err := schema.PutStruct(oo, &s)
+		_, err := schema.PutStruct(oo, &s)
 		if err != nil {
 			log.Fatalf("could not create schema: %v", err)
 		}
 		log.Printf("generated %d entries", len(m))
-		req := api.PutRequest{}
-		for _, k := range m {
-			req.Blobs = append(req.Blobs, k)
-		}
-		res, err := nodeservice.PutNodes(context.Background(), req)
-		if err != nil {
-			log.Fatalf("could not create schema: %v", err)
-		}
-		log.Printf("created schema for %s: %#v", h, res)
+		// req := api.PutRequest{}
+		// for _, k := range m {
+		// 	req.Blobs = append(req.Blobs, k)
+		// }
+		// res, err := nodeservice.PutNodes(context.Background(), req)
+		// if err != nil {
+		// 	log.Fatalf("could not create schema: %v", err)
+		// }
+		// log.Printf("created schema for %s: %#v", h, res)
 	},
 }
 

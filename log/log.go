@@ -45,16 +45,19 @@ func InitLog(projectID string) {
 }
 
 func Log(ctx context.Context, entry logging.Entry) {
+	// TODO: gRPC
 	if gc, ok := ctx.(*gin.Context); ok {
 		entry.HTTPRequest = &logging.HTTPRequest{
 			Request: gc.Request,
 		}
 	}
+
+	// Always log to stderr.
+	color := severityColor[entry.Severity]
+	log.Printf("[%s] %v", color("%-7s", entry.Severity), entry.Payload)
+
 	if parentLogger != nil {
 		parentLogger.Log(entry)
-	} else {
-		color := severityColor[entry.Severity]
-		log.Printf("[%s] %v", color("%-7s", entry.Severity), entry.Payload)
 	}
 }
 

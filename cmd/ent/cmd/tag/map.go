@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package _map
+package tag
 
 import (
 	"crypto/ecdsa"
@@ -24,18 +24,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var MapCmd = &cobra.Command{
-	Use: "map",
+var TagCmd = &cobra.Command{
+	Use: "tag",
 	Run: func(cmd *cobra.Command, args []string) {
 	},
 }
 
 func init() {
-	MapCmd.AddCommand(setCmd)
-	MapCmd.AddCommand(getCmd)
+	TagCmd.AddCommand(setCmd)
+	TagCmd.AddCommand(getCmd)
 }
 
-func ValidateEntry(m *pb.MapEntry, ecpk *ecdsa.PublicKey, signature []byte) error {
+func ValidateEntry(m *pb.TagEntry, ecpk *ecdsa.PublicKey, signature []byte) error {
 	entryBytes, err := proto.Marshal(m)
 	if err != nil {
 		return err

@@ -121,13 +121,11 @@ func put(bytes []byte, link cid.Cid, name string) error {
 }
 
 func exists(nodeService nodeservice.ObjectGetter, digest utils.Digest) bool {
-	_, err := nodeService.Get(context.Background(), digest)
-	if err == nodeservice.ErrNotFound {
-		return false
-	} else if err != nil {
+	ok, err := nodeService.Has(context.Background(), digest)
+	if err != nil {
 		log.Fatalf("could not check existence of %q: %v", digest, err)
 	}
-	return true
+	return ok
 }
 
 func init() {

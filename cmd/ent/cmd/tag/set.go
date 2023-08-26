@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package _map
+package tag
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 
 var (
 	publicKey string
-	label     string
+	tag       string
 	target    string
 )
 
@@ -75,8 +75,8 @@ var setCmd = &cobra.Command{
 		}
 		targetProto := utils.DigestToProto(targetDigest)
 
-		entry := pb.MapEntry{
-			Label:  label,
+		entry := pb.TagEntry{
+			Tag:    tag,
 			Target: targetProto,
 		}
 		entryBytes, err := proto.Marshal(&entry)
@@ -89,7 +89,7 @@ var setCmd = &cobra.Command{
 		}
 		log.Printf("signature: %s", base64.URLEncoding.EncodeToString(signature))
 
-		req := pb.MapSetRequest{
+		req := pb.SetTagRequest{
 			Entry:          &entry,
 			PublicKey:      pkb,
 			EntrySignature: signature,
@@ -98,19 +98,19 @@ var setCmd = &cobra.Command{
 
 		err = ValidateEntry(req.Entry, ecpk, req.EntrySignature)
 		if err != nil {
-			log.Fatalf("failed to validate map: %v", err)
+			log.Fatalf("failed to validate tag: %v", err)
 		}
 
 		r := c.Remotes[0]
 		nodeService := remote.GetObjectStore(r)
 		ctx := context.Background()
-		_, err = nodeService.GRPC.MapSet(ctx, &req)
+		_, err = nodeService.GRPC.SetTag(ctx, &req)
 		log.Printf("err: %v", err)
 	},
 }
 
 func init() {
 	setCmd.PersistentFlags().StringVar(&publicKey, "public-key", "", "public key")
-	setCmd.PersistentFlags().StringVar(&label, "label", "", "label")
+	setCmd.PersistentFlags().StringVar(&tag, "tag", "", "tag")
 	setCmd.PersistentFlags().StringVar(&target, "target", "", "target")
 }

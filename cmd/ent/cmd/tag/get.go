@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package _map
+package tag
 
 import (
 	"context"
@@ -49,16 +49,16 @@ var getCmd = &cobra.Command{
 		}
 		log.Printf("public key: %v", ecpk)
 
-		req := pb.MapGetRequest{
+		req := pb.GetTagRequest{
 			PublicKey: pkb,
-			Label:     label,
+			Tag:       tag,
 		}
 		log.Printf("request: %+v", &req)
 
 		r := c.Remotes[0]
 		nodeService := remote.GetObjectStore(r)
 		ctx := context.Background()
-		res, err := nodeService.GRPC.MapGet(ctx, &req)
+		res, err := nodeService.GRPC.GetTag(ctx, &req)
 		if err != nil {
 			log.Fatalf("failed to get: %v", err)
 		}
@@ -72,5 +72,5 @@ var getCmd = &cobra.Command{
 
 func init() {
 	getCmd.PersistentFlags().StringVar(&publicKey, "public-key", "", "public key")
-	getCmd.PersistentFlags().StringVar(&label, "label", "", "label")
+	getCmd.PersistentFlags().StringVar(&tag, "tag", "", "tag")
 }

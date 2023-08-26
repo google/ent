@@ -27,7 +27,7 @@ type Digest struct {
 type MapEntry struct {
 	PublicKey []byte `firestore:"0"`
 
-	Label  string `firestore:"1"`
+	Tag    string `firestore:"1"`
 	Target Digest `firestore:"2"`
 
 	EntrySignature []byte `firestore:"3"`

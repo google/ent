@@ -1,6 +1,6 @@
 export CGO_ENABLED := "0"
 
-build-server:
+build-server: build-proto
     go build -o ./bin/ent-server github.com/google/ent/cmd/ent-server
 
 run-server: build-server

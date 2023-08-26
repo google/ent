@@ -18,7 +18,7 @@ package cmd
 import (
 	"log"
 
-	_map "github.com/google/ent/cmd/ent/cmd/map"
+	"github.com/google/ent/cmd/ent/cmd/tag"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/nodeservice"
 	"github.com/spf13/cobra"
@@ -70,7 +70,7 @@ func init() {
 	rootCmd.AddCommand(printSchemaCmd)
 	rootCmd.AddCommand(uploadCmd)
 	rootCmd.AddCommand(keygenCmd)
-	rootCmd.AddCommand(_map.MapCmd)
+	rootCmd.AddCommand(tag.TagCmd)
 }
 
 func GetObjectGetter() nodeservice.ObjectGetter {

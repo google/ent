@@ -18,12 +18,10 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
+	"io"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/ent/api"
+	"cloud.google.com/go/storage"
 	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
@@ -31,133 +29,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func apiGetHandler(c *gin.Context) {
-	ctx := c
-	accessItem := &LogItemGet{
-		LogItem: BaseLogItem(c),
-		Source:  SourceAPI,
-	}
-	defer LogGet(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
-	user := apiKeyToUser[apiKey]
-	if user == nil {
-		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
-	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
-	if !user.CanRead {
-		log.Warningf(ctx, "user %d does not have read permission", user.ID)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	accessItem.UserID = int64(user.ID)
-
-	var req api.GetRequest
-	json.NewDecoder(c.Request.Body).Decode(&req)
-	log.Debugf(ctx, "req: %#v", req)
-
-	var res api.GetResponse
-	res.Items = make(map[string][]byte, len(req.Items))
-	for _, item := range req.Items {
-		log.Infof(ctx, "item root digest: %#v", item.NodeID.Root.Hash().String())
-		nodeID := item.NodeID
-		accessItem.Digest = append(accessItem.Digest, nodeID.Root.Hash().String())
-		blobs, err := fetchNodes(ctx, nodeID.Root, item.Depth)
-		if err != nil {
-			log.Warningf(ctx, "error getting blob %q: %s", nodeID.Root, err)
-			accessItem.NotFound = append(accessItem.NotFound, nodeID.Root.Hash().String())
-			continue
-		}
-		for _, blob := range blobs {
-			digest := utils.ComputeDigest(blob)
-			digestString := digest.String()
-			accessItem.Found = append(accessItem.Found, string(digestString))
-			res.Items[digestString] = blob
-		}
-	}
-
-	c.JSON(http.StatusOK, res)
-}
-
 func redact(s string) string {
 	if len(s) > 4 {
 		return s[:4] + "..."
 	}
 	return s
-}
-
-func apiPutHandler(c *gin.Context) {
-	ctx := c
-
-	accessItem := &LogItemPut{
-		LogItem: BaseLogItem(c),
-		Source:  SourceAPI,
-	}
-	defer LogPut(ctx, accessItem)
-
-	apiKey := getAPIKey(c)
-	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
-	user := apiKeyToUser[apiKey]
-	if user == nil {
-		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
-	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
-	if !user.CanWrite {
-		log.Warningf(ctx, "user %d does not have write permission", user.ID)
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-	accessItem.UserID = int64(user.ID)
-
-	var req api.PutRequest
-	err := json.NewDecoder(c.Request.Body).Decode(&req)
-	if err != nil {
-		log.Warningf(ctx, "could not parse request: %v", err)
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	var res api.PutResponse
-	res.Digest = make([]utils.Digest, 0, len(req.Blobs))
-	for _, blob := range req.Blobs {
-		digest := utils.ComputeDigest(blob)
-		exists, err := blobStore.Has(ctx, digest)
-		if err != nil {
-			log.Errorf(ctx, "error checking blob existence: %s", err)
-			accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
-			continue
-		}
-		if exists {
-			log.Infof(ctx, "blob %q already exists", digest)
-			accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
-			// We count the blob as created, even though it already existed.
-			res.Digest = append(res.Digest, digest)
-			continue
-		}
-		digest1, err := blobStore.Put(ctx, blob)
-		if !bytes.Equal(digest1, digest) {
-			log.Errorf(ctx, "mismatching digest, expected %q, got %q", digest.String(), digest1.String())
-		}
-		accessItem.Digest = append(accessItem.Digest, digest1.String())
-		if err != nil {
-			log.Errorf(ctx, "error adding blob: %s", err)
-			accessItem.NotCreated = append(accessItem.NotCreated, digest1.String())
-			continue
-		}
-		log.Infof(ctx, "added blob: %q", digest1.String())
-		accessItem.Created = append(accessItem.Created, digest1.String())
-		res.Digest = append(res.Digest, digest1)
-	}
-
-	log.Debugf(ctx, "res: %#v", res)
-	c.JSON(http.StatusOK, res)
 }
 
 type grpcServer struct {
@@ -167,27 +43,174 @@ type grpcServer struct {
 var _ pb.EntServer = grpcServer{}
 
 // GetEntry implements ent.EntServer
-func (grpcServer) GetEntry(context.Context, *pb.GetEntryRequest) (*pb.GetEntryResponse, error) {
-	panic("unimplemented")
+func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) error {
+	ctx := s.Context()
+	accessItem := &LogItemGet{
+		// TODO
+		Source: SourceAPI,
+	}
+	defer LogGet(ctx, accessItem)
+
+	apiKey := getAPIKeyGRPC(ctx)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
+	user := apiKeyToUser[apiKey]
+	if user == nil {
+		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
+		return grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
+	if !user.CanRead {
+		log.Warningf(ctx, "user %d does not have read permission", user.ID)
+		return grpc.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
+	}
+	accessItem.UserID = int64(user.ID)
+
+	digest := utils.DigestFromProto(req.Digest)
+	log.Debugf(ctx, "digest: %q", digest.String())
+
+	log.Debugf(ctx, "getting blob: %q", digest.String())
+	// TODO: Do not read if no bytes are requested.
+	blob, err := blobStore.Get(ctx, digest)
+	if err == storage.ErrObjectNotExist {
+		log.Warningf(ctx, "blob not found: %q", digest.String())
+		return grpc.Errorf(codes.NotFound, "blob not found: %q", digest.String())
+	} else if err != nil {
+		log.Warningf(ctx, "could not get blob: %s", err)
+		return grpc.Errorf(codes.Internal, "could not get blob: %s", err)
+	}
+	log.Debugf(ctx, "got blob: %q", digest.String())
+
+	err = s.Send(&pb.GetEntryResponse{
+		Entry: &pb.GetEntryResponse_Metadata{
+			Metadata: &pb.EntryMetadata{
+				Digests: []*pb.Digest{
+					utils.DigestToProto(digest),
+				},
+			},
+		},
+	})
+	if err != nil {
+		log.Warningf(ctx, "could not send response: %s", err)
+		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+	}
+
+	if req.IncludeBytes {
+		err = s.Send(&pb.GetEntryResponse{
+			Entry: &pb.GetEntryResponse_Chunk{
+				Chunk: &pb.Chunk{
+					Data: blob,
+				},
+			},
+		})
+		if err != nil {
+			log.Warningf(ctx, "could not send response: %s", err)
+			return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+		}
+	}
+
+	return nil
 }
 
-// MapGet implements ent.EntServer
-func (grpcServer) MapGet(ctx context.Context, req *pb.MapGetRequest) (*pb.MapGetResponse, error) {
-	log.Debugf(ctx, "req: %s", &req)
+// PutEntry implements ent.EntServer
+func (grpcServer) PutEntry(s pb.Ent_PutEntryServer) error {
+	ctx := s.Context()
+	accessItem := &LogItemPut{
+		// TODO
+		Source: SourceAPI,
+	}
+	defer LogPut(ctx, accessItem)
 
-	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Label)
+	apiKey := getAPIKeyGRPC(ctx)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
+	user := apiKeyToUser[apiKey]
+	if user == nil {
+		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
+		return grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
+	if !user.CanWrite {
+		log.Warningf(ctx, "user %d does not have write permission", user.ID)
+		return grpc.Errorf(codes.PermissionDenied, "user %d does not have write permission", user.ID)
+	}
+	accessItem.UserID = int64(user.ID)
+
+	// TODO: Use correct size.
+	blob := make([]byte, 0, 1024*1024)
+
+	next := true
+	for next {
+		req, err := s.Recv()
+		if err == io.EOF {
+			log.Infof(ctx, "received EOF")
+			blob = append(blob, req.GetChunk().GetData()...)
+			next = false
+		} else if err != nil {
+			log.Warningf(ctx, "could not receive request: %s", err)
+			return grpc.Errorf(codes.Internal, "could not receive request: %s", err)
+		} else {
+			blob = append(blob, req.GetChunk().GetData()...)
+		}
+	}
+
+	digest := utils.ComputeDigest(blob)
+
+	exists, err := blobStore.Has(ctx, digest)
 	if err != nil {
-		log.Errorf(ctx, "could not get map entry: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not get map entry: %s", err)
+		log.Errorf(ctx, "error checking blob existence: %s", err)
+		accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
+	}
+	if exists {
+		log.Infof(ctx, "blob %q already exists", digest)
+		accessItem.NotCreated = append(accessItem.NotCreated, digest.String())
+		// We count the blob as created, even though it already existed.
+	} else {
+		log.Infof(ctx, "adding blob: %q", digest)
+		digest1, err := blobStore.Put(ctx, blob)
+		if !bytes.Equal(digest1, digest) {
+			log.Errorf(ctx, "mismatching digest, expected %q, got %q", digest.String(), digest1.String())
+		}
+		accessItem.Digest = append(accessItem.Digest, digest1.String())
+		if err != nil {
+			log.Errorf(ctx, "error adding blob: %s", err)
+			accessItem.NotCreated = append(accessItem.NotCreated, digest1.String())
+		}
+		log.Infof(ctx, "added blob: %q", digest1.String())
+		accessItem.Created = append(accessItem.Created, digest1.String())
+	}
+	res := &pb.PutEntryResponse{
+		Metadata: &pb.EntryMetadata{
+			Digests: []*pb.Digest{
+				utils.DigestToProto(digest),
+			},
+		},
+	}
+	err = s.SendAndClose(res)
+	if err != nil {
+		log.Warningf(ctx, "could not send response: %s", err)
+		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+	}
+	return nil
+}
+
+// GetTag implements ent.EntServer
+func (grpcServer) GetTag(ctx context.Context, req *pb.GetTagRequest) (*pb.GetTagResponse, error) {
+	log.Debugf(ctx, "req: %s", req)
+
+	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Tag)
+	if err != nil {
+		log.Errorf(ctx, "could not get tag entry: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not get tag entry: %s", err)
 	}
 	if entry == nil {
-		log.Debugf(ctx, "map entry not found")
-		return &pb.MapGetResponse{}, nil
+		log.Debugf(ctx, "tag entry not found")
+		return &pb.GetTagResponse{}, nil
 	}
-	log.Infof(ctx, "map entry found: %s", entry)
-	return &pb.MapGetResponse{
-		Entry: &pb.MapEntry{
-			Label: entry.Label,
+	log.Infof(ctx, "map entry found: %v", entry)
+	return &pb.GetTagResponse{
+		Entry: &pb.TagEntry{
+			Tag: entry.Tag,
 			Target: &pb.Digest{
 				Code:   uint64(entry.Target.Code),
 				Digest: entry.Target.Digest,
@@ -197,13 +220,13 @@ func (grpcServer) MapGet(ctx context.Context, req *pb.MapGetRequest) (*pb.MapGet
 
 }
 
-// MapSet implements ent.EntServer
-func (grpcServer) MapSet(ctx context.Context, req *pb.MapSetRequest) (*pb.MapSetResponse, error) {
-	log.Debugf(ctx, "req: %s", &req)
+// SetTag implements ent.EntServer
+func (grpcServer) SetTag(ctx context.Context, req *pb.SetTagRequest) (*pb.SetTagResponse, error) {
+	log.Debugf(ctx, "req: %s", req)
 
 	e := MapEntry{
 		PublicKey: req.PublicKey,
-		Label:     req.Entry.Label,
+		Tag:       req.Entry.Tag,
 		Target: Digest{
 			Code:   int64(req.Entry.Target.Code),
 			Digest: req.Entry.Target.Digest,
@@ -217,10 +240,5 @@ func (grpcServer) MapSet(ctx context.Context, req *pb.MapSetRequest) (*pb.MapSet
 		return nil, grpc.Errorf(codes.Internal, "could not set map entry: %s", err)
 	}
 
-	return &pb.MapSetResponse{}, nil
-}
-
-// mustEmbedUnimplementedEntServer implements ent.EntServer
-func (grpcServer) mustEmbedUnimplementedEntServer() {
-	panic("unimplemented")
+	return &pb.SetTagResponse{}, nil
 }

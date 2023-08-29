@@ -24,6 +24,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/multiformats/go-multihash"
 	"github.com/spf13/cobra"
 )
@@ -140,9 +141,15 @@ func digestData(data []byte) (utils.Digest, error) {
 }
 
 func formatDigest(digest utils.Digest, name string) string {
-	return fmt.Sprintf("%s %s\n", color.YellowString(string(digest.String())), name)
+	digestString := utils.FormatDigest(digest, digestFormatFlag)
+	return fmt.Sprintf("%s %s\n", color.YellowString(digestString), name)
 }
 
 func formatLink(link cid.Cid, name string) string {
-	return fmt.Sprintf("%s %s\n", color.YellowString(link.String()), name)
+	linkString, err := link.StringOfBase(mbase.Base32)
+	if err != nil {
+		// Should never happen.
+		panic(err)
+	}
+	return fmt.Sprintf("%s %s\n", color.YellowString(linkString), name)
 }

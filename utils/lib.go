@@ -121,3 +121,7 @@ func FormatDigest(digest Digest, format string) string {
 		return "-"
 	}
 }
+
+func DigestForLog(digest Digest) string {
+	return digest.B58String()
+}

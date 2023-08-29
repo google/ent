@@ -113,7 +113,7 @@ func (s Remote) Put(ctx context.Context, size uint64, r io.Reader) (utils.Digest
 }
 
 func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
-	log.Debugf(ctx, "checking existence of %q", digest)
+	log.Debugf(ctx, "checking existence of %s", utils.DigestForLog(digest))
 	md := metadata.New(nil)
 	md.Set(APIKeyHeader, s.APIKey)
 	ctx = metadata.NewOutgoingContext(ctx, md)

@@ -111,7 +111,7 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 		Links: links,
 		Bytes: []byte(data),
 	}
-	fmt.Printf("DAG node: %v\n", dagNode)
+	log.Printf("DAG node: %v\n", dagNode)
 	serialized, err := utils.SerializeDAGNode(&dagNode)
 	if err != nil {
 		return utils.Digest{}, err

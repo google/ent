@@ -25,6 +25,7 @@ type EntClient interface {
 	GetTag(ctx context.Context, in *GetTagRequest, opts ...grpc.CallOption) (*GetTagResponse, error)
 	SetTag(ctx context.Context, in *SetTagRequest, opts ...grpc.CallOption) (*SetTagResponse, error)
 	GetEntry(ctx context.Context, in *GetEntryRequest, opts ...grpc.CallOption) (Ent_GetEntryClient, error)
+	GetEntryMetadata(ctx context.Context, in *GetEntryMetadataRequest, opts ...grpc.CallOption) (*GetEntryMetadataResponse, error)
 	PutEntry(ctx context.Context, opts ...grpc.CallOption) (Ent_PutEntryClient, error)
 }
 
@@ -86,6 +87,15 @@ func (x *entGetEntryClient) Recv() (*GetEntryResponse, error) {
 	return m, nil
 }
 
+func (c *entClient) GetEntryMetadata(ctx context.Context, in *GetEntryMetadataRequest, opts ...grpc.CallOption) (*GetEntryMetadataResponse, error) {
+	out := new(GetEntryMetadataResponse)
+	err := c.cc.Invoke(ctx, "/ent.server.api.Ent/GetEntryMetadata", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *entClient) PutEntry(ctx context.Context, opts ...grpc.CallOption) (Ent_PutEntryClient, error) {
 	stream, err := c.cc.NewStream(ctx, &Ent_ServiceDesc.Streams[1], "/ent.server.api.Ent/PutEntry", opts...)
 	if err != nil {
@@ -127,6 +137,7 @@ type EntServer interface {
 	GetTag(context.Context, *GetTagRequest) (*GetTagResponse, error)
 	SetTag(context.Context, *SetTagRequest) (*SetTagResponse, error)
 	GetEntry(*GetEntryRequest, Ent_GetEntryServer) error
+	GetEntryMetadata(context.Context, *GetEntryMetadataRequest) (*GetEntryMetadataResponse, error)
 	PutEntry(Ent_PutEntryServer) error
 	mustEmbedUnimplementedEntServer()
 }
@@ -143,6 +154,9 @@ func (UnimplementedEntServer) SetTag(context.Context, *SetTagRequest) (*SetTagRe
 }
 func (UnimplementedEntServer) GetEntry(*GetEntryRequest, Ent_GetEntryServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetEntry not implemented")
+}
+func (UnimplementedEntServer) GetEntryMetadata(context.Context, *GetEntryMetadataRequest) (*GetEntryMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEntryMetadata not implemented")
 }
 func (UnimplementedEntServer) PutEntry(Ent_PutEntryServer) error {
 	return status.Errorf(codes.Unimplemented, "method PutEntry not implemented")
@@ -217,6 +231,24 @@ func (x *entGetEntryServer) Send(m *GetEntryResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _Ent_GetEntryMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEntryMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EntServer).GetEntryMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ent.server.api.Ent/GetEntryMetadata",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EntServer).GetEntryMetadata(ctx, req.(*GetEntryMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Ent_PutEntry_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(EntServer).PutEntry(&entPutEntryServer{stream})
 }
@@ -257,6 +289,10 @@ var Ent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTag",
 			Handler:    _Ent_SetTag_Handler,
+		},
+		{
+			MethodName: "GetEntryMetadata",
+			Handler:    _Ent_GetEntryMetadata_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

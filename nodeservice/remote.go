@@ -50,8 +50,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	req := pb.GetEntryRequest{
-		Digest:       utils.DigestToProto(digest),
-		IncludeBytes: true,
+		Digest: utils.DigestToProto(digest),
 	}
 	c, err := s.GRPC.GetEntry(ctx, &req)
 	if err != nil {
@@ -115,12 +114,10 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 	md.Set(APIKeyHeader, s.APIKey)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	req := pb.GetEntryRequest{
-		Digest:       utils.DigestToProto(digest),
-		IncludeBytes: false,
+	req := pb.GetEntryMetadataRequest{
+		Digest: utils.DigestToProto(digest),
 	}
-	c, err := s.GRPC.GetEntry(ctx, &req)
-	// It looks like the actual errors are returned below, not here.
+	res, err := s.GRPC.GetEntryMetadata(ctx, &req)
 	if grpc.Code(err) == codes.NotFound {
 		log.Debugf(ctx, "entry not found: %s", err)
 		return false, nil
@@ -129,17 +126,8 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 		return false, err
 	}
 
-	res, err := c.Recv()
-	if grpc.Code(err) == codes.NotFound {
-		log.Debugf(ctx, "entry not found: %s", err)
-		return false, nil
-	} else if err != nil {
-		log.Debugf(ctx, "error receiving entry: %s", err)
-		return false, err
-	}
-
 	ok := len(res.GetMetadata().GetDigests()) > 0
-	log.Debugf(ctx, "entry found: %v", ok)
+	log.Debugf(ctx, "entry found: %v", res)
 
 	return ok, nil
 }

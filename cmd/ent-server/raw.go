@@ -27,6 +27,7 @@ import (
 
 func rawGetHandler(c *gin.Context) {
 	ctx := c
+	log.Infof(ctx, "rawGetHandler")
 
 	accessItem := &LogItemGet{
 		LogItem: BaseLogItem(c),
@@ -35,12 +36,15 @@ func rawGetHandler(c *gin.Context) {
 	defer LogGet(ctx, accessItem)
 
 	apiKey := getAPIKey(c)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
 	user := apiKeyToUser[apiKey]
 	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", apiKey)
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanRead {
 		log.Warningf(ctx, "user %d does not have read permission", user.ID)
 		c.AbortWithStatus(http.StatusForbidden)
@@ -48,12 +52,16 @@ func rawGetHandler(c *gin.Context) {
 	}
 	accessItem.UserID = user.ID
 
-	digest, err := utils.ParseDigest(c.Param("digest"))
+	rawDigest := c.Param("digest")
+	log.Infof(ctx, "rawDigest: %q", rawDigest)
+
+	digest, err := utils.ParseDigest(rawDigest)
 	if err != nil {
 		log.Warningf(ctx, "could not parse digest: %s", err)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
+	log.Infof(ctx, "digest: %s", utils.DigestForLog(digest))
 
 	accessItem.Digest = append(accessItem.Digest, string(digest))
 

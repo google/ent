@@ -16,15 +16,16 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
+	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
@@ -47,15 +48,18 @@ var putCmd = &cobra.Command{
 		if len(args) > 0 {
 			filename = args[0]
 		}
+		ctx := context.Background()
 		if filename == "" {
 			err := putStdin()
 			if err != nil {
-				log.Fatal(err)
+				log.Criticalf(ctx, "could not read from stdin: %v", err)
+				return
 			}
 		} else {
 			_, err := traverseFileOrDir(filename, put)
 			if err != nil {
-				log.Fatal(err)
+				log.Criticalf(ctx, "could not traverse file: %v", err)
+				return
 			}
 		}
 
@@ -80,7 +84,8 @@ func putStdin() error {
 // 	return putData(data)
 // }
 
-func put(bytes []byte, link cid.Cid, name string) error {
+func put(b []byte, link cid.Cid, name string) error {
+	ctx := context.Background()
 	config := config.ReadConfig()
 	r := config.Remotes[0]
 	if remoteFlag != "" {
@@ -91,6 +96,7 @@ func put(bytes []byte, link cid.Cid, name string) error {
 		}
 	}
 	nodeService := remote.GetObjectStore(r)
+	size := len(b)
 
 	switch link.Type() {
 	case utils.TypeRaw:
@@ -100,9 +106,10 @@ func put(bytes []byte, link cid.Cid, name string) error {
 		if exists(nodeService, digest) {
 			marker = color.GreenString("✓")
 		} else {
-			_, err := nodeService.Put(context.Background(), bytes)
+			log.Infof(ctx, "putting object %q", digestString)
+			_, err := nodeService.Put(ctx, uint64(size), bytes.NewReader(b))
 			if err != nil {
-				log.Printf("could not put object: %v", err)
+				log.Errorf(ctx, "could not put object: %v", err)
 				return fmt.Errorf("could not put object: %v", err)
 			}
 			marker = color.BlueString("↑")
@@ -110,7 +117,7 @@ func put(bytes []byte, link cid.Cid, name string) error {
 		if porcelainFlag {
 			fmt.Printf("%s\n", digestString)
 		} else {
-			fmt.Printf("%s [%s %s] %s %.0f\n", color.YellowString(digestString), marker, r.Name, name, units.Bytes(len(bytes)))
+			fmt.Printf("%s [%s %s] %s %.0f\n", color.YellowString(digestString), marker, r.Name, name, units.Bytes(size))
 		}
 		return nil
 	case utils.TypeDAG:
@@ -121,9 +128,11 @@ func put(bytes []byte, link cid.Cid, name string) error {
 }
 
 func exists(nodeService nodeservice.ObjectGetter, digest utils.Digest) bool {
-	ok, err := nodeService.Has(context.Background(), digest)
+	ctx := context.Background()
+	ok, err := nodeService.Has(ctx, digest)
 	if err != nil {
-		log.Fatalf("could not check existence of %q: %v", digest, err)
+		log.Errorf(ctx, "could not check existence of %q: %v", digest, err)
+		return false
 	}
 	return ok
 }

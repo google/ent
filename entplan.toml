@@ -1,9 +1,0 @@
-[[overrides]]
-path = "tools/node"
-from = "bafkreidhwdqb3p6lqzxe55na5hrdrw7d5meput4mpfcixcspo2nevbbafi"
-executable = true
-# command = "ent cat sha256:ad1e3baa1aee8028b43206da3b2be9b8867cb598b4318bc88a0ae4518cc062a2 > /tmp/node.tar.xz; mkdir ${OUT}; tar --file=/tmp/node.tar.xz --verbose --extract --directory=${OUT}"
-
-[[overrides]]
-path = "tools/prettier"
-from = "bafybeihnebwksdlbbimznfp7b2itgw6rzqg556vzpnxhdtekwx2ddbvbty"

@@ -16,7 +16,6 @@
 package nodeservice
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -24,6 +23,7 @@ import (
 	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
+	"github.com/schollz/progressbar/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -50,8 +50,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	req := pb.GetEntryRequest{
-		Digest:       utils.DigestToProto(digest),
-		IncludeBytes: true,
+		Digest: utils.DigestToProto(digest),
 	}
 	c, err := s.GRPC.GetEntry(ctx, &req)
 	if err != nil {
@@ -66,7 +65,7 @@ func (s Remote) Get(ctx context.Context, digest utils.Digest) ([]byte, error) {
 	return res.GetChunk().Data, nil
 }
 
-func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
+func (s Remote) Put(ctx context.Context, size uint64, r io.Reader) (utils.Digest, error) {
 	md := metadata.New(nil)
 	md.Set(APIKeyHeader, s.APIKey)
 	ctx = metadata.NewOutgoingContext(ctx, md)
@@ -76,8 +75,8 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 		return nil, err
 	}
 
-	r := bytes.NewReader(b)
 	chunk := make([]byte, chunkSize)
+	bar := progressbar.DefaultBytes(int64(size))
 	for {
 		n, err := r.Read(chunk)
 		if err == io.EOF {
@@ -94,7 +93,10 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 		if err != nil {
 			return nil, err
 		}
+		bar.Add(n)
 	}
+	bar.Finish()
+	log.Debugf(ctx, "done sending chunks")
 
 	res, err := c.CloseAndRecv()
 	if err != nil {
@@ -103,6 +105,7 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 	if len(res.GetMetadata().GetDigests()) != 1 {
 		return utils.Digest{}, fmt.Errorf("expected 1 digest, got %d", len(res.GetMetadata().GetDigests()))
 	}
+	log.Infof(ctx, "put entry: %v", res)
 
 	digest := utils.DigestFromProto(res.Metadata.Digests[0])
 
@@ -110,17 +113,15 @@ func (s Remote) Put(ctx context.Context, b []byte) (utils.Digest, error) {
 }
 
 func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
-	log.Debugf(ctx, "checking existence of %q", digest)
+	log.Debugf(ctx, "checking existence of %s", utils.DigestForLog(digest))
 	md := metadata.New(nil)
 	md.Set(APIKeyHeader, s.APIKey)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	req := pb.GetEntryRequest{
-		Digest:       utils.DigestToProto(digest),
-		IncludeBytes: false,
+	req := pb.GetEntryMetadataRequest{
+		Digest: utils.DigestToProto(digest),
 	}
-	c, err := s.GRPC.GetEntry(ctx, &req)
-	// It looks like the actual errors are returned below, not here.
+	res, err := s.GRPC.GetEntryMetadata(ctx, &req)
 	if grpc.Code(err) == codes.NotFound {
 		log.Debugf(ctx, "entry not found: %s", err)
 		return false, nil
@@ -129,17 +130,8 @@ func (s Remote) Has(ctx context.Context, digest utils.Digest) (bool, error) {
 		return false, err
 	}
 
-	res, err := c.Recv()
-	if grpc.Code(err) == codes.NotFound {
-		log.Debugf(ctx, "entry not found: %s", err)
-		return false, nil
-	} else if err != nil {
-		log.Debugf(ctx, "error receiving entry: %s", err)
-		return false, err
-	}
-
 	ok := len(res.GetMetadata().GetDigests()) > 0
-	log.Debugf(ctx, "entry found: %v", ok)
+	log.Debugf(ctx, "entry found: %v", res)
 
 	return ok, nil
 }

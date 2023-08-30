@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 	"time"
 
@@ -38,7 +37,6 @@ import (
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
-	"github.com/multiformats/go-multihash"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -126,9 +124,6 @@ func main() {
 
 	log.InitLog(config.ProjectID)
 
-	domainName = config.DomainName
-	log.Infof(ctx, "domain name: %s", domainName)
-
 	for _, user := range config.Users {
 		// Must make a copy first, or else the map will point to the same.
 		u := user
@@ -203,7 +198,6 @@ func main() {
 
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false
-	router.LoadHTMLGlob("templates/*")
 
 	router.GET("/raw/:digest", rawGetHandler)
 	router.PUT("/raw", rawPutHandler)
@@ -242,62 +236,6 @@ func parseHost(p string) []string {
 		return []string{}
 	} else {
 		return strings.Split(strings.TrimPrefix(p, "/"), "/")
-	}
-}
-
-func serveUI1(c *gin.Context, root utils.Digest, segments []utils.Selector, rawData []byte, node *utils.DAGNode) {
-	templateSegments := []UIPathSegment{}
-	for i, s := range segments {
-		templateSegments = append(templateSegments, UIPathSegment{
-			Name:     utils.PrintSelector(s),
-			Selector: s,
-			URL:      path.Join("/", "browse", string(root), utils.PrintPath(segments[0:i+1])),
-		})
-	}
-	links := []UILink{}
-	if node != nil {
-		for linkIndex, link := range node.Links {
-			linkPath := segments
-			linkPath = append(linkPath, utils.Selector(linkIndex))
-			links = append(links, UILink{
-				Selector: utils.Selector(linkIndex),
-				Digest:   link.Hash().String(),
-				URL:      path.Join("/", "browse", string(root), utils.PrintPath(linkPath)),
-			})
-		}
-	}
-	currentURL := path.Join("/", "browse", string(root))
-	parentURL := ""
-	if len(segments) > 0 {
-		parentURL = path.Join("/", "browse", string(root), utils.PrintPath(segments[0:len(segments)-1]))
-	}
-
-	link := cid.NewCidV1(utils.TypeDAG, multihash.Multihash(root))
-
-	uiNode := UINode{
-		Value:        string(rawData),
-		Digest:       string(root),
-		PathSegments: templateSegments,
-		Links:        links,
-		URL:          currentURL,
-		ParentURL:    parentURL,
-		WWWURL:       fmt.Sprintf("http://%s.%s.%s/", link.String(), wwwSegment, domainName),
-	}
-	if node != nil {
-		c.HTML(http.StatusOK, "browse.tmpl", gin.H{
-			"type":    "directory",
-			"wwwHost": wwwSegment + "." + domainName,
-			"node":    uiNode,
-			"digest":  string(root),
-		})
-	} else {
-		c.HTML(http.StatusOK, "browse.tmpl", gin.H{
-			"type":     "file",
-			"wwwHost":  wwwSegment + "." + domainName,
-			"blob":     rawData,
-			"blob_str": string(rawData),
-			"digest":   string(root),
-		})
 	}
 }
 

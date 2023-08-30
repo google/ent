@@ -11,7 +11,6 @@ message Digest {
 
 message GetEntryRequest {
     Digest digest = 1;
-    bool include_bytes = 2;
 }
 
 message Chunk {
@@ -26,6 +25,14 @@ message GetEntryResponse {
     }
 }
 
+message GetEntryMetadataRequest {
+    Digest digest = 1;
+}
+
+message GetEntryMetadataResponse {
+    EntryMetadata metadata = 1;
+}
+
 message PutEntryRequest {
     Chunk chunk = 1;
 }
@@ -36,6 +43,7 @@ message PutEntryResponse {
 
 message EntryMetadata {
     repeated Digest digests = 1;
+    uint64 size = 2;
 }
 
 message GetTagRequest{
@@ -67,5 +75,6 @@ service Ent {
     rpc SetTag(SetTagRequest) returns (SetTagResponse) {}
 
     rpc GetEntry(GetEntryRequest) returns (stream GetEntryResponse) {}
+    rpc GetEntryMetadata(GetEntryMetadataRequest) returns (GetEntryMetadataResponse) {}
     rpc PutEntry(stream PutEntryRequest) returns (PutEntryResponse) {}
 }

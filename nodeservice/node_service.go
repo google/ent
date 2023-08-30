@@ -23,6 +23,7 @@ import (
 
 type ObjectGetter interface {
 	Get(ctx context.Context, h utils.Digest) ([]byte, error)
+	// TODO: GetMetadata
 	Has(ctx context.Context, h utils.Digest) (bool, error)
 }
 

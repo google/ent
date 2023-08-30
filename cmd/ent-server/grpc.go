@@ -45,6 +45,7 @@ var _ pb.EntServer = grpcServer{}
 // GetEntry implements ent.EntServer
 func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) error {
 	ctx := s.Context()
+	log.Infof(ctx, "GetEntry req: %s", req)
 	accessItem := &LogItemGet{
 		// TODO
 		Source: SourceAPI,
@@ -70,7 +71,6 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 	log.Debugf(ctx, "digest: %q", digest.String())
 
 	log.Debugf(ctx, "getting blob: %q", digest.String())
-	// TODO: Do not read if no bytes are requested.
 	blob, err := blobStore.Get(ctx, digest)
 	if err == storage.ErrObjectNotExist {
 		log.Warningf(ctx, "blob not found: %q", digest.String())
@@ -95,21 +95,68 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
 	}
 
-	if req.IncludeBytes {
-		err = s.Send(&pb.GetEntryResponse{
-			Entry: &pb.GetEntryResponse_Chunk{
-				Chunk: &pb.Chunk{
-					Data: blob,
-				},
+	err = s.Send(&pb.GetEntryResponse{
+		Entry: &pb.GetEntryResponse_Chunk{
+			Chunk: &pb.Chunk{
+				Data: blob,
 			},
-		})
-		if err != nil {
-			log.Warningf(ctx, "could not send response: %s", err)
-			return grpc.Errorf(codes.Internal, "could not send response: %s", err)
-		}
+		},
+	})
+	if err != nil {
+		log.Warningf(ctx, "could not send response: %s", err)
+		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
 	}
 
 	return nil
+}
+
+func (grpcServer) GetEntryMetadata(ctx context.Context, req *pb.GetEntryMetadataRequest) (*pb.GetEntryMetadataResponse, error) {
+	log.Infof(ctx, "HasEntry req: %s", req)
+	accessItem := &LogItemGet{
+		// TODO
+		Source: SourceAPI,
+	}
+	defer LogGet(ctx, accessItem)
+
+	apiKey := getAPIKeyGRPC(ctx)
+	log.Debugf(ctx, "apiKey: %q", redact(apiKey))
+	user := apiKeyToUser[apiKey]
+	if user == nil {
+		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
+		return nil, grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+	}
+	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
+	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
+	if !user.CanRead {
+		log.Warningf(ctx, "user %d does not have read permission", user.ID)
+		return nil, grpc.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
+	}
+	accessItem.UserID = int64(user.ID)
+
+	digest := utils.DigestFromProto(req.Digest)
+	log.Debugf(ctx, "digest: %q", digest.String())
+
+	log.Debugf(ctx, "getting blob: %q", digest.String())
+	ok, err := blobStore.Has(ctx, digest)
+	if err != nil {
+		log.Warningf(ctx, "could not get blob: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not get blob: %s", err)
+	}
+	log.Debugf(ctx, "got blob: %q = %v", digest.String(), ok)
+
+	if !ok {
+		return nil, grpc.Errorf(codes.NotFound, "blob not found: %q", digest.String())
+	}
+
+	res := &pb.GetEntryMetadataResponse{
+		Metadata: &pb.EntryMetadata{
+			Digests: []*pb.Digest{
+				utils.DigestToProto(digest),
+			},
+		},
+	}
+
+	return res, nil
 }
 
 // PutEntry implements ent.EntServer

@@ -16,6 +16,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -51,7 +52,7 @@ var putFSCmd = &cobra.Command{
 	},
 }
 
-func putFS(bytes []byte, link cid.Cid, name string) error {
+func putFS(b []byte, link cid.Cid, name string) error {
 	config := config.ReadConfig()
 	r := config.Remotes[0]
 	if remoteFlag != "" {
@@ -63,13 +64,14 @@ func putFS(bytes []byte, link cid.Cid, name string) error {
 	}
 	nodeService := remote.GetObjectStore(r)
 
+	size := len(b)
 	digest := utils.Digest(link.Hash())
 	if exists(nodeService, digest) {
 		marker := color.GreenString("✓")
 		fmt.Printf("%s %s [%s] %s\n", color.YellowString(link.String()), marker, r.Name, name)
 		return nil
 	} else {
-		_, err := nodeService.Put(context.Background(), bytes)
+		_, err := nodeService.Put(context.Background(), uint64(size), bytes.NewReader(b))
 		if err != nil {
 			log.Printf("could not put object: %v", err)
 			return fmt.Errorf("could not put object: %v", err)

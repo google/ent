@@ -4,11 +4,6 @@ package ent.server.config;
 
 option go_package = "github.com/ent";
 
-import "google/protobuf/empty.proto";
-import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
-
 message Config {
     string project_id = 1;
     string listen_address = 2;

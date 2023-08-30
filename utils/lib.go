@@ -41,7 +41,10 @@ func ParseDigest(s string) (Digest, error) {
 		} else {
 			parts := strings.Split(s, ":")
 			if len(parts) == 2 {
-				code := multihash.Names[strings.ToLower(parts[0])]
+				code, ok := multihash.Names[strings.ToLower(parts[0])]
+				if !ok {
+					return nil, fmt.Errorf("invalid digest code: %q", parts[0])
+				}
 				ss, err := hex.DecodeString(parts[1])
 				if err != nil {
 					return nil, err
@@ -120,4 +123,8 @@ func FormatDigest(digest Digest, format string) string {
 	default:
 		return "-"
 	}
+}
+
+func DigestForLog(digest Digest) string {
+	return digest.B58String()
 }

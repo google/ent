@@ -44,9 +44,6 @@ import (
 )
 
 var (
-	// Server address with port, from config file. Example: "localhost:27333"
-	domainName string
-
 	blobStore nodeservice.ObjectStore
 	store     Store
 

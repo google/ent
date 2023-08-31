@@ -47,14 +47,12 @@ var (
 	blobStore nodeservice.ObjectStore
 	store     Store
 
-	enableMemcache = false
-	enableBigquery = false
-
 	apiKeyToUser = map[string]*User{}
 )
 
 const (
-	defaultPort = 27333
+	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
+	apiKeyHeader = "x-api-key"
 )
 
 var configPath = flag.String("config", "", "path to config file")
@@ -113,20 +111,13 @@ func main() {
 	ctx := context.Background()
 	if *configPath == "" {
 		log.Errorf(ctx, "must specify config")
-		return
+		os.Exit(1)
 	}
 	log.Infof(ctx, "loading config from %q", *configPath)
 	config := readConfig()
 	log.Infof(ctx, "loaded config: %#v", config)
 
 	log.InitLog(config.ProjectID)
-
-	if config.RedisEnabled {
-		enableMemcache = true
-		log.Infof(ctx, "memcache enabled")
-	} else {
-		log.Infof(ctx, "memcache disabled")
-	}
 
 	for _, user := range config.Users {
 		// Must make a copy first, or else the map will point to the same.
@@ -137,26 +128,19 @@ func main() {
 		log.Infof(ctx, "user %q: %q %d", redact(apiKey), user.Name, user.ID)
 	}
 
-	if config.BigqueryEnabled {
-		enableBigquery = true
-		log.Infof(ctx, "bigquery enabled")
-	} else {
-		log.Infof(ctx, "bigquery disabled")
-	}
-
 	var ds datastore.DataStore
 
 	if config.CloudStorageEnabled {
 		objectsBucketName := config.CloudStorageBucket
 		if objectsBucketName == "" {
 			log.Errorf(ctx, "must specify Cloud Storage bucket name")
-			return
+			os.Exit(1)
 		}
 		log.Infof(ctx, "using Cloud Storage bucket: %q", objectsBucketName)
 		storageClient, err := storage.NewClient(ctx)
 		if err != nil {
 			log.Errorf(ctx, "could not create Cloud Storage client: %v", err)
-			return
+			os.Exit(1)
 		}
 		ds = datastore.Cloud{
 			Client:     storageClient,
@@ -284,16 +268,12 @@ func fetchNodes(ctx context.Context, base cid.Cid, depth uint) ([][]byte, error)
 }
 
 func getAPIKey(c *gin.Context) string {
-	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
-	const header = "x-api-key"
-	return c.Request.Header.Get(header)
+	return c.Request.Header.Get(apiKeyHeader)
 }
 
 func getAPIKeyGRPC(c context.Context) string {
-	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
-	const header = "x-api-key"
 	md, _ := metadata.FromIncomingContext(c)
-	vv := md.Get(header)
+	vv := md.Get(apiKeyHeader)
 	if len(vv) == 0 {
 		return ""
 	}

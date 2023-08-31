@@ -38,9 +38,10 @@ type MapEntry struct {
 }
 
 func (s *Store) GetMapEntry(ctx context.Context, publicKey []byte, label string) (*MapEntry, error) {
-	doc, err := s.c.Collection(MapEntryCollection).Query.Where("0", "==", publicKey).Where("1", "==", label).Documents(ctx).Next()
-	if err != nil {
-		return nil, err
+	docs := s.c.Collection(MapEntryCollection).Query.Where("0", "==", publicKey).Where("1", "==", label).Documents(ctx)
+	doc, err := docs.Next()
+	if err != nil { // Not found.
+		return nil, nil
 	}
 	e := MapEntry{}
 	if err := doc.DataTo(&e); err != nil {

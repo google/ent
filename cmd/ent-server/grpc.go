@@ -25,8 +25,8 @@ import (
 	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func redact(s string) string {
@@ -57,13 +57,13 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 	user := apiKeyToUser[apiKey]
 	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
-		return grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+		return status.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
 	}
 	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
 	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanRead {
 		log.Warningf(ctx, "user %d does not have read permission", user.ID)
-		return grpc.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
+		return status.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
 	}
 	accessItem.UserID = int64(user.ID)
 
@@ -74,10 +74,10 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 	blob, err := blobStore.Get(ctx, digest)
 	if err == storage.ErrObjectNotExist {
 		log.Warningf(ctx, "blob not found: %q", digest.String())
-		return grpc.Errorf(codes.NotFound, "blob not found: %q", digest.String())
+		return status.Errorf(codes.NotFound, "blob not found: %q", digest.String())
 	} else if err != nil {
 		log.Warningf(ctx, "could not get blob: %s", err)
-		return grpc.Errorf(codes.Internal, "could not get blob: %s", err)
+		return status.Errorf(codes.Internal, "could not get blob: %s", err)
 	}
 	log.Debugf(ctx, "got blob: %q", digest.String())
 
@@ -92,7 +92,7 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 	})
 	if err != nil {
 		log.Warningf(ctx, "could not send response: %s", err)
-		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+		return status.Errorf(codes.Internal, "could not send response: %s", err)
 	}
 
 	err = s.Send(&pb.GetEntryResponse{
@@ -104,7 +104,7 @@ func (grpcServer) GetEntry(req *pb.GetEntryRequest, s pb.Ent_GetEntryServer) err
 	})
 	if err != nil {
 		log.Warningf(ctx, "could not send response: %s", err)
-		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+		return status.Errorf(codes.Internal, "could not send response: %s", err)
 	}
 
 	return nil
@@ -123,13 +123,13 @@ func (grpcServer) GetEntryMetadata(ctx context.Context, req *pb.GetEntryMetadata
 	user := apiKeyToUser[apiKey]
 	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
-		return nil, grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+		return nil, status.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
 	}
 	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
 	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanRead {
 		log.Warningf(ctx, "user %d does not have read permission", user.ID)
-		return nil, grpc.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
+		return nil, status.Errorf(codes.PermissionDenied, "user %d does not have read permission", user.ID)
 	}
 	accessItem.UserID = int64(user.ID)
 
@@ -140,12 +140,12 @@ func (grpcServer) GetEntryMetadata(ctx context.Context, req *pb.GetEntryMetadata
 	ok, err := blobStore.Has(ctx, digest)
 	if err != nil {
 		log.Warningf(ctx, "could not get blob: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not get blob: %s", err)
+		return nil, status.Errorf(codes.Internal, "could not get blob: %s", err)
 	}
 	log.Debugf(ctx, "got blob: %q = %v", digest.String(), ok)
 
 	if !ok {
-		return nil, grpc.Errorf(codes.NotFound, "blob not found: %q", digest.String())
+		return nil, status.Errorf(codes.NotFound, "blob not found: %q", digest.String())
 	}
 
 	res := &pb.GetEntryMetadataResponse{
@@ -173,13 +173,13 @@ func (grpcServer) PutEntry(s pb.Ent_PutEntryServer) error {
 	user := apiKeyToUser[apiKey]
 	if user == nil {
 		log.Warningf(ctx, "invalid API key: %q", redact(apiKey))
-		return grpc.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
+		return status.Errorf(codes.PermissionDenied, "invalid API key: %q", redact(apiKey))
 	}
 	log.Debugf(ctx, "user: %q %d", user.Name, user.ID)
 	log.Debugf(ctx, "perms: read:%v write:%v", user.CanRead, user.CanWrite)
 	if !user.CanWrite {
 		log.Warningf(ctx, "user %d does not have write permission", user.ID)
-		return grpc.Errorf(codes.PermissionDenied, "user %d does not have write permission", user.ID)
+		return status.Errorf(codes.PermissionDenied, "user %d does not have write permission", user.ID)
 	}
 	accessItem.UserID = int64(user.ID)
 
@@ -195,7 +195,7 @@ func (grpcServer) PutEntry(s pb.Ent_PutEntryServer) error {
 			next = false
 		} else if err != nil {
 			log.Warningf(ctx, "could not receive request: %s", err)
-			return grpc.Errorf(codes.Internal, "could not receive request: %s", err)
+			return status.Errorf(codes.Internal, "could not receive request: %s", err)
 		} else {
 			blob = append(blob, req.GetChunk().GetData()...)
 		}
@@ -236,7 +236,7 @@ func (grpcServer) PutEntry(s pb.Ent_PutEntryServer) error {
 	err = s.SendAndClose(res)
 	if err != nil {
 		log.Warningf(ctx, "could not send response: %s", err)
-		return grpc.Errorf(codes.Internal, "could not send response: %s", err)
+		return status.Errorf(codes.Internal, "could not send response: %s", err)
 	}
 	return nil
 }
@@ -248,7 +248,7 @@ func (grpcServer) GetTag(ctx context.Context, req *pb.GetTagRequest) (*pb.GetTag
 	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Label)
 	if err != nil {
 		log.Errorf(ctx, "could not get tag: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not get tag: %s", err)
+		return nil, status.Errorf(codes.Internal, "could not get tag: %s", err)
 	}
 	if entry == nil {
 		log.Debugf(ctx, "tag not found")
@@ -287,7 +287,7 @@ func (grpcServer) SetTag(ctx context.Context, req *pb.SetTagRequest) (*pb.SetTag
 	err := store.SetMapEntry(ctx, &e)
 	if err != nil {
 		log.Errorf(ctx, "could not set tag: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not set tag: %s", err)
+		return nil, status.Errorf(codes.Internal, "could not set tag: %s", err)
 	}
 	log.Infof(ctx, "set tag: %v", e)
 

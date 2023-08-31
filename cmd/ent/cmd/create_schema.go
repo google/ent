@@ -16,11 +16,13 @@
 package cmd
 
 import (
-	"log"
+	"context"
+	"os"
 
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
 	"github.com/google/ent/datastore"
+	"github.com/google/ent/log"
 	"github.com/google/ent/objectstore"
 	"github.com/google/ent/schema"
 	"github.com/spf13/cobra"
@@ -30,14 +32,15 @@ var createSchemaCmd = &cobra.Command{
 	Use:  "create-schema [filename]",
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		config := config.ReadConfig()
 		r := config.Remotes[0]
 		if remoteFlag != "" {
 			var err error
 			r, err = remote.GetRemote(config, remoteFlag)
 			if err != nil {
-				log.Fatalf("could not use remote: %v", err)
-				return
+				log.Criticalf(ctx, "could not use remote: %v", err)
+				os.Exit(1)
 			}
 		}
 		_ = remote.GetObjectStore(r)
@@ -169,9 +172,10 @@ var createSchemaCmd = &cobra.Command{
 		}
 		_, err := schema.PutStruct(oo, &s)
 		if err != nil {
-			log.Fatalf("could not create schema: %v", err)
+			log.Criticalf(ctx, "create schema: %v", err)
+			os.Exit(1)
 		}
-		log.Printf("generated %d entries", len(m))
+		log.Infof(ctx, "generated %d entries", len(m))
 		// req := api.PutRequest{}
 		// for _, k := range m {
 		// 	req.Blobs = append(req.Blobs, k)

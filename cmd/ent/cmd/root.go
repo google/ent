@@ -16,10 +16,12 @@
 package cmd
 
 import (
-	"log"
+	"context"
+	"os"
 
 	"github.com/google/ent/cmd/ent/cmd/tag"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/spf13/cobra"
 )
@@ -54,8 +56,10 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	ctx := context.Background()
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		log.Criticalf(ctx, "execute command: %v", err)
+		os.Exit(1)
 	}
 }
 

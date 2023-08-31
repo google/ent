@@ -21,10 +21,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
+	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
@@ -33,38 +34,52 @@ import (
 var getCmd = &cobra.Command{
 	Use: "get",
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		c := config.ReadConfig()
 
 		pkb, err := base64.URLEncoding.DecodeString(publicKey)
 		if err != nil {
-			log.Fatalf("failed to decode public key: %v", err)
+			log.Criticalf(ctx, "decode public key: %v", err)
+			os.Exit(1)
 		}
 		pk, err := x509.ParsePKIXPublicKey(pkb)
 		if err != nil {
-			log.Fatalf("failed to parse public key: %v", err)
+			log.Criticalf(ctx, "parse public key: %v", err)
+			os.Exit(1)
 		}
 		ecpk, ok := pk.(*ecdsa.PublicKey)
 		if !ok {
-			log.Fatalf("public key is not ECDSA")
+			log.Criticalf(ctx, "public key is not ECDSA")
+			os.Exit(1)
 		}
-		log.Printf("public key: %v", ecpk)
+		log.Infof(ctx, "public key: %v", ecpk)
 
 		req := pb.GetTagRequest{
 			PublicKey: pkb,
-			Tag:       tag,
+			Label:     label,
 		}
-		log.Printf("request: %+v", &req)
+		log.Infof(ctx, "request: %+v", &req)
 
 		r := c.Remotes[0]
+		if remoteFlag != "" {
+			var err error
+			r, err = remote.GetRemote(c, remoteFlag)
+			if err != nil {
+				log.Criticalf(ctx, "could not use remote: %v", err)
+				os.Exit(1)
+			}
+		}
+		log.Debugf(ctx, "using remote %q", r.Name)
+
 		nodeService := remote.GetObjectStore(r)
-		ctx := context.Background()
 		res, err := nodeService.GRPC.GetTag(ctx, &req)
 		if err != nil {
-			log.Fatalf("failed to get: %v", err)
+			log.Criticalf(ctx, "failed to get: %v", err)
+			os.Exit(1)
 		}
-		log.Printf("response: %+v", res)
+		log.Infof(ctx, "response: %+v", res)
 
-		digest := utils.DigestFromProto(res.Entry.Target)
+		digest := utils.DigestFromProto(res.SignedTag.Tag.Target)
 		out := utils.DigestToHumanString(digest)
 		fmt.Printf("%s\n", out)
 	},
@@ -72,5 +87,6 @@ var getCmd = &cobra.Command{
 
 func init() {
 	getCmd.PersistentFlags().StringVar(&publicKey, "public-key", "", "public key")
-	getCmd.PersistentFlags().StringVar(&tag, "tag", "", "tag")
+	getCmd.PersistentFlags().StringVar(&label, "label", "", "label")
+	getCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
 }

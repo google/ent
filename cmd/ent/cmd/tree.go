@@ -18,12 +18,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
+	"os"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
+	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
 	"github.com/google/ent/schema"
 	"github.com/google/ent/utils"
@@ -36,9 +37,11 @@ var (
 )
 
 func tree(o nodeservice.ObjectGetter, digest utils.Digest, indent int, kindID uint32) {
-	object, err := o.Get(context.Background(), digest)
+	ctx := context.Background()
+	object, err := o.Get(ctx, digest)
 	if err != nil {
-		log.Fatalf("could not download target: %s", err)
+		log.Criticalf(ctx, "download target: %s", err)
+		os.Exit(1)
 	}
 	node, err := utils.ParseDAGNode(object)
 	if err != nil {
@@ -77,10 +80,11 @@ var treeCmd = &cobra.Command{
 	Use:  "tree [digest]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		digest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse digest: %v", err)
-			return
+			log.Criticalf(ctx, "parse digest: %v", err)
+			os.Exit(1)
 		}
 
 		config := config.ReadConfig()
@@ -89,8 +93,8 @@ var treeCmd = &cobra.Command{
 			var err error
 			r, err = remote.GetRemote(config, remoteFlag)
 			if err != nil {
-				log.Fatalf("could not use remote: %v", err)
-				return
+				log.Criticalf(ctx, "use remote: %v", err)
+				os.Exit(1)
 			}
 		}
 		o := remote.GetObjectStore(r)
@@ -102,15 +106,15 @@ var treeCmd = &cobra.Command{
 		if schemaFlag != "" {
 			schemaDigest, err := utils.ParseDigest(schemaFlag)
 			if err != nil {
-				log.Fatalf("could not parse schema digest: %v", err)
-				return
+				log.Criticalf(ctx, "parse schema digest: %v", err)
+				os.Exit(1)
 			}
 			err = schema.GetStruct(o, schemaDigest, &s)
 			if err != nil {
-				log.Fatalf("could not load schema: %v", err)
-				return
+				log.Criticalf(ctx, "load schema: %v", err)
+				os.Exit(1)
 			}
-			log.Printf("loaded schema: %+v", s)
+			log.Infof(ctx, "loaded schema: %+v", s)
 		}
 		tree(o, digest, 0, 0)
 	},

@@ -53,13 +53,13 @@ var putCmd = &cobra.Command{
 			err := putStdin()
 			if err != nil {
 				log.Criticalf(ctx, "could not read from stdin: %v", err)
-				return
+				os.Exit(1)
 			}
 		} else {
 			_, err := traverseFileOrDir(filename, put)
 			if err != nil {
 				log.Criticalf(ctx, "could not traverse file: %v", err)
-				return
+				os.Exit(1)
 			}
 		}
 

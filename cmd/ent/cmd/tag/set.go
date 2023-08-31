@@ -21,11 +21,12 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
-	"log"
+	"os"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/cmd/ent/remote"
+	"github.com/google/ent/log"
 	pb "github.com/google/ent/proto"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
@@ -33,7 +34,7 @@ import (
 
 var (
 	publicKey string
-	tag       string
+	label     string
 	target    string
 )
 
@@ -41,76 +42,102 @@ var setCmd = &cobra.Command{
 	Use:  "set",
 	Args: cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		c := config.ReadConfig()
 
 		skb, err := base64.URLEncoding.DecodeString(c.SecretKey)
 		if err != nil {
-			log.Fatalf("failed to decode secret key: %v", err)
+			log.Criticalf(ctx, "decode secret key: %v", err)
+			os.Exit(1)
 		}
 		sk, err := x509.ParseECPrivateKey(skb)
 		if err != nil {
-			log.Fatalf("failed to parse secret key: %v", err)
+			log.Criticalf(ctx, "parse secret key: %v", err)
+			os.Exit(1)
 		}
 
 		pkb, err := base64.URLEncoding.DecodeString(publicKey)
 		if err != nil {
-			log.Fatalf("failed to decode public key: %v", err)
+			log.Criticalf(ctx, "decode public key: %v", err)
+			os.Exit(1)
 		}
 		pk, err := x509.ParsePKIXPublicKey(pkb)
 		if err != nil {
-			log.Fatalf("failed to parse public key: %v", err)
+			log.Criticalf(ctx, "parse public key: %v", err)
+			os.Exit(1)
 		}
 		ecpk, ok := pk.(*ecdsa.PublicKey)
 		if !ok {
-			log.Fatalf("public key is not ECDSA")
+			log.Criticalf(ctx, "public key is not ECDSA")
+			os.Exit(1)
 		}
 		// Compare public key with secret key
 		if !ecpk.Equal(sk.Public()) {
-			log.Fatalf("public key mismatch")
+			log.Criticalf(ctx, "public key mismatch")
+			os.Exit(1)
 		}
 
 		targetDigest, err := utils.ParseDigest(target)
 		if err != nil {
-			log.Fatalf("failed to parse target: %v", err)
+			log.Criticalf(ctx, "parse target: %v", err)
+			os.Exit(1)
 		}
 		targetProto := utils.DigestToProto(targetDigest)
 
-		entry := pb.TagEntry{
-			Tag:    tag,
+		tag := pb.Tag{
+			Label:  label,
 			Target: targetProto,
 		}
-		entryBytes, err := proto.Marshal(&entry)
+		tagBytes, err := proto.Marshal(&tag)
 		if err != nil {
-			log.Fatalf("failed to marshal entry: %v", err)
+			log.Criticalf(ctx, "marshal tag: %v", err)
+			os.Exit(1)
 		}
-		signature, err := ecdsa.SignASN1(rand.Reader, sk, entryBytes)
+		signature, err := ecdsa.SignASN1(rand.Reader, sk, tagBytes)
 		if err != nil {
-			log.Fatalf("failed to sign: %v", err)
+			log.Criticalf(ctx, "sign tag: %v", err)
+			os.Exit(1)
 		}
-		log.Printf("signature: %s", base64.URLEncoding.EncodeToString(signature))
+		log.Infof(ctx, "signature: %s", base64.URLEncoding.EncodeToString(signature))
 
 		req := pb.SetTagRequest{
-			Entry:          &entry,
-			PublicKey:      pkb,
-			EntrySignature: signature,
+			SignedTag: &pb.SignedTag{
+				Tag:          &tag,
+				TagSignature: signature,
+				PublicKey:    pkb,
+			},
 		}
-		log.Printf("request: %+v", &req)
+		log.Infof(ctx, "request: %+v", &req)
 
-		err = ValidateEntry(req.Entry, ecpk, req.EntrySignature)
+		err = ValidateEntry(req.SignedTag.Tag, ecpk, req.SignedTag.TagSignature)
 		if err != nil {
-			log.Fatalf("failed to validate tag: %v", err)
+			log.Criticalf(ctx, "validate tag: %v", err)
+			os.Exit(1)
 		}
 
 		r := c.Remotes[0]
+		if remoteFlag != "" {
+			var err error
+			r, err = remote.GetRemote(c, remoteFlag)
+			if err != nil {
+				log.Criticalf(ctx, "could not use remote: %v", err)
+				os.Exit(1)
+			}
+		}
+		log.Debugf(ctx, "using remote %q", r.Name)
+
 		nodeService := remote.GetObjectStore(r)
-		ctx := context.Background()
 		_, err = nodeService.GRPC.SetTag(ctx, &req)
-		log.Printf("err: %v", err)
+		if err != nil {
+			log.Criticalf(ctx, "set tag: %v", err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
 	setCmd.PersistentFlags().StringVar(&publicKey, "public-key", "", "public key")
-	setCmd.PersistentFlags().StringVar(&tag, "tag", "", "tag")
+	setCmd.PersistentFlags().StringVar(&label, "label", "", "label")
 	setCmd.PersistentFlags().StringVar(&target, "target", "", "target")
+	setCmd.PersistentFlags().StringVar(&remoteFlag, "remote", "", "remote")
 }

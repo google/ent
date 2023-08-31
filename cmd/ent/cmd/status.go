@@ -18,10 +18,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/google/ent/cmd/ent/config"
+	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
 	"github.com/spf13/cobra"
 )
@@ -30,10 +31,11 @@ var statusCmd = &cobra.Command{
 	Use:  "status [digest]",
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		digest, err := utils.ParseDigest(args[0])
 		if err != nil {
-			log.Fatalf("could not parse digest: %v", err)
-			return
+			log.Criticalf(ctx, "parse digest: %v", err)
+			os.Exit(1)
 		}
 		status(digest)
 	},

@@ -16,48 +16,55 @@
 package cmd
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
-	"log"
+	"os"
 
+	"github.com/google/ent/log"
 	"github.com/spf13/cobra"
 )
 
 var keygenCmd = &cobra.Command{
 	Use: "keygen",
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
-			log.Fatal(err)
+			log.Criticalf(ctx, "generate key pair: %v", err)
+			os.Exit(1)
 		}
 		sk, err := x509.MarshalECPrivateKey(k)
 		if err != nil {
-			log.Fatal(err)
+			log.Criticalf(ctx, "marshal private key: %v", err)
+			os.Exit(1)
 		}
 		sks := base64.URLEncoding.EncodeToString(sk)
-		log.Printf("Secret key: %q", sks)
+		log.Infof(ctx, "Secret key: %q", sks)
 
 		pk, err := x509.MarshalPKIXPublicKey(&k.PublicKey)
 		if err != nil {
-			log.Fatal(err)
+			log.Criticalf(ctx, "marshal public key: %v", err)
+			os.Exit(1)
 		}
 		pks := base64.URLEncoding.EncodeToString(pk)
-		log.Printf("Public key: %q", pks)
+		log.Infof(ctx, "Public key: %q", pks)
 
 		text := "hello world"
 		sig, err := ecdsa.SignASN1(rand.Reader, k, []byte(text))
 		if err != nil {
-			log.Fatal(err)
+			log.Criticalf(ctx, "sign ASN1: %v", err)
+			os.Exit(1)
 		}
 		sigs := base64.URLEncoding.EncodeToString(sig)
-		log.Printf("Signature: %q", sigs)
+		log.Infof(ctx, "Signature: %q", sigs)
 
 		// verify
 		ok := ecdsa.VerifyASN1(&k.PublicKey, []byte(text), sig)
-		log.Printf("Verify: %v", ok)
+		log.Infof(ctx, "Verify: %v", ok)
 	},
 }
 

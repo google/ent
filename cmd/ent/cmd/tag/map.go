@@ -24,6 +24,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	remoteFlag string
+)
+
 var TagCmd = &cobra.Command{
 	Use: "tag",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -35,7 +39,7 @@ func init() {
 	TagCmd.AddCommand(getCmd)
 }
 
-func ValidateEntry(m *pb.TagEntry, ecpk *ecdsa.PublicKey, signature []byte) error {
+func ValidateEntry(m *pb.Tag, ecpk *ecdsa.PublicKey, signature []byte) error {
 	entryBytes, err := proto.Marshal(m)
 	if err != nil {
 		return err

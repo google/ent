@@ -16,12 +16,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/google/ent/log"
 	"github.com/google/ent/utils"
 	"github.com/ipfs/go-cid"
 	mbase "github.com/multiformats/go-multibase"
@@ -33,6 +34,7 @@ var digestCmd = &cobra.Command{
 	Use:  "digest [filename]",
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
 		filename := ""
 		if len(args) > 0 {
 			filename = args[0]
@@ -40,12 +42,14 @@ var digestCmd = &cobra.Command{
 		if filename == "" {
 			_, err := digestStdin()
 			if err != nil {
-				log.Fatal(err)
+				log.Criticalf(ctx, "computing digest of stdin: %v", err)
+				os.Exit(1)
 			}
 		} else {
 			_, err := traverseFileOrDir(filename, print)
 			if err != nil {
-				log.Fatal(err)
+				log.Criticalf(ctx, "traversing file or dir: %v", err)
+				os.Exit(1)
 			}
 		}
 
@@ -80,6 +84,7 @@ func traverseFileOrDir(filename string, f traverseF) (utils.Digest, error) {
 }
 
 func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
+	ctx := context.Background()
 	files, err := ioutil.ReadDir(dirname)
 	if err != nil {
 		return utils.Digest{}, fmt.Errorf("could not read directory %s: %v", dirname, err)
@@ -112,7 +117,7 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 		Links: links,
 		Bytes: []byte(data),
 	}
-	log.Printf("DAG node: %v\n", dagNode)
+	log.Infof(ctx, "DAG node: %v\n", dagNode)
 	serialized, err := utils.SerializeDAGNode(&dagNode)
 	if err != nil {
 		return utils.Digest{}, err
@@ -121,7 +126,7 @@ func traverseDir(dirname string, f traverseF) (utils.Digest, error) {
 	link := cid.NewCidV1(utils.TypeDAG, multihash.Multihash(digest))
 	err = f(serialized, link, dirname+"/")
 	if err != nil {
-		log.Printf("could not traverse directory %q: %v", dirname, err)
+		log.Infof(ctx, "could not traverse directory %q: %v", dirname, err)
 	}
 	return digest, nil
 }

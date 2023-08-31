@@ -245,22 +245,24 @@ func (grpcServer) PutEntry(s pb.Ent_PutEntryServer) error {
 func (grpcServer) GetTag(ctx context.Context, req *pb.GetTagRequest) (*pb.GetTagResponse, error) {
 	log.Debugf(ctx, "req: %s", req)
 
-	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Tag)
+	entry, err := store.GetMapEntry(ctx, req.PublicKey, req.Label)
 	if err != nil {
-		log.Errorf(ctx, "could not get tag entry: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not get tag entry: %s", err)
+		log.Errorf(ctx, "could not get tag: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not get tag: %s", err)
 	}
 	if entry == nil {
-		log.Debugf(ctx, "tag entry not found")
+		log.Debugf(ctx, "tag not found")
 		return &pb.GetTagResponse{}, nil
 	}
-	log.Infof(ctx, "map entry found: %v", entry)
+	log.Infof(ctx, "tag found: %v", entry)
 	return &pb.GetTagResponse{
-		Entry: &pb.TagEntry{
-			Tag: entry.Tag,
-			Target: &pb.Digest{
-				Code:   uint64(entry.Target.Code),
-				Digest: entry.Target.Digest,
+		SignedTag: &pb.SignedTag{
+			Tag: &pb.Tag{
+				Label: entry.Label,
+				Target: &pb.Digest{
+					Code:   uint64(entry.Target.Code),
+					Digest: entry.Target.Digest,
+				},
 			},
 		},
 	}, nil
@@ -272,20 +274,22 @@ func (grpcServer) SetTag(ctx context.Context, req *pb.SetTagRequest) (*pb.SetTag
 	log.Debugf(ctx, "req: %s", req)
 
 	e := MapEntry{
-		PublicKey: req.PublicKey,
-		Tag:       req.Entry.Tag,
+		PublicKey: req.SignedTag.PublicKey,
+		Label:     req.SignedTag.Tag.Label,
 		Target: Digest{
-			Code:   int64(req.Entry.Target.Code),
-			Digest: req.Entry.Target.Digest,
+			Code:   int64(req.SignedTag.Tag.Target.Code),
+			Digest: req.SignedTag.Tag.Target.Digest,
 		},
-		EntrySignature: req.EntrySignature,
+		EntrySignature: req.SignedTag.TagSignature,
 		CreationTime:   time.Now(),
 	}
+	// TODO: Check signature.
 	err := store.SetMapEntry(ctx, &e)
 	if err != nil {
-		log.Errorf(ctx, "could not set map entry: %s", err)
-		return nil, grpc.Errorf(codes.Internal, "could not set map entry: %s", err)
+		log.Errorf(ctx, "could not set tag: %s", err)
+		return nil, grpc.Errorf(codes.Internal, "could not set tag: %s", err)
 	}
+	log.Infof(ctx, "set tag: %v", e)
 
 	return &pb.SetTagResponse{}, nil
 }

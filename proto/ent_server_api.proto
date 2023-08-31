@@ -48,23 +48,27 @@ message EntryMetadata {
 
 message GetTagRequest{
     bytes public_key = 1;
-    string tag = 2;
+    // TODO: Prefix search.
+    string label = 2;
 }
 
 message GetTagResponse{
-    TagEntry entry = 1;
+    SignedTag signed_tag = 1;
 }
 
-message TagEntry {
-    string tag = 1;
+message Tag {
+    string label = 1;
     Digest target = 2;
 }
 
-message SetTagRequest {
-    TagEntry entry = 1;
+message SignedTag {
+    Tag tag = 1;
+    bytes tag_signature = 2;
+    bytes public_key = 3;
+}
 
-    bytes public_key = 2;
-    bytes entry_signature = 3;
+message SetTagRequest {
+    SignedTag signed_tag = 1;
 }
 
 message SetTagResponse {

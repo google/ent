@@ -53,8 +53,6 @@ var (
 const (
 	// See https://cloud.google.com/endpoints/docs/openapi/openapi-limitations#api_key_definition_limitations
 	apiKeyHeader = "x-api-key"
-
-	wwwSegment = "www"
 )
 
 var configPath = flag.String("config", "", "path to config file")

@@ -70,8 +70,6 @@ func init() {
 	rootCmd.AddCommand(putCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(treeCmd)
-	rootCmd.AddCommand(createSchemaCmd)
-	rootCmd.AddCommand(printSchemaCmd)
 	rootCmd.AddCommand(keygenCmd)
 	rootCmd.AddCommand(tag.TagCmd)
 }

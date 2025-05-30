@@ -26,6 +26,8 @@ import (
 
 const (
 	indexBasePath = "https://raw.githubusercontent.com/tiziano88/ent-index/main"
+	staticSpace   = "https://api.static.space/v1"
+	localhost     = "http://localhost:8081/v1"
 )
 
 type Config struct {
@@ -68,7 +70,7 @@ func defaultConfig() Config {
 		Remotes: []Remote{
 			{
 				Name:  "default",
-				URL:   indexBasePath,
+				URL:   localhost,
 				Index: true,
 			},
 		},

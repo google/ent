@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/ent/api"
 	pb "github.com/google/ent/proto"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multihash"
@@ -127,4 +128,25 @@ func FormatDigest(digest Digest, format string) string {
 
 func DigestForLog(digest Digest) string {
 	return digest.B58String()
+}
+
+func DigestToApi(digest Digest) api.HexDigests {
+	mh, err := multihash.Decode(digest)
+	if err != nil {
+		panic(err)
+	}
+	switch mh.Code {
+	case multihash.SHA2_256:
+		return api.HexDigests{Sha2_256: hex.EncodeToString(mh.Digest)}
+	case multihash.SHA2_512:
+		return api.HexDigests{Sha2_512: hex.EncodeToString(mh.Digest)}
+	case multihash.SHA3_256:
+		return api.HexDigests{Sha3_256: hex.EncodeToString(mh.Digest)}
+	case multihash.SHA3_384:
+		return api.HexDigests{Sha3_384: hex.EncodeToString(mh.Digest)}
+	case multihash.SHA3_512:
+		return api.HexDigests{Sha3_512: hex.EncodeToString(mh.Digest)}
+	default:
+		panic(fmt.Sprintf("unsupported hash code: %v", mh.Code))
+	}
 }

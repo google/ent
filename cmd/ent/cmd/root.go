@@ -19,7 +19,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/google/ent/cmd/ent/cmd/tag"
 	"github.com/google/ent/cmd/ent/config"
 	"github.com/google/ent/log"
 	"github.com/google/ent/nodeservice"
@@ -66,12 +65,8 @@ func Execute() {
 func init() {
 	rootCmd.AddCommand(digestCmd)
 	rootCmd.AddCommand(getCmd)
-	rootCmd.AddCommand(putFSCmd)
 	rootCmd.AddCommand(putCmd)
-	rootCmd.AddCommand(statusCmd)
-	rootCmd.AddCommand(treeCmd)
 	rootCmd.AddCommand(keygenCmd)
-	rootCmd.AddCommand(tag.TagCmd)
 }
 
 func GetObjectGetter() nodeservice.ObjectGetter {

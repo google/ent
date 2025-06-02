@@ -52,7 +52,6 @@ var digestCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-
 	},
 }
 

@@ -25,4 +25,4 @@ install-cli:
     go build -o ./bin/ent ./cmd/ent
 
 test-cli: install-cli
-    ./bin/ent get --digest=sha2-256:fba3120c26c61a92490736f9afa329faed0117bdb6e579011039dc4e34071507
+    ./bin/ent get --digest=sha2-256:fba3120c26c61a92490736f9afa329faed0117bdb6e579011039dc4e34071507 --out=./.test

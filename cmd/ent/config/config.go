@@ -70,7 +70,7 @@ func defaultConfig() Config {
 		Remotes: []Remote{
 			{
 				Name:  "default",
-				URL:   localhost,
+				URL:   staticSpace,
 				Index: true,
 			},
 		},
